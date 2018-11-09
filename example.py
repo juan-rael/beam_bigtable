@@ -189,8 +189,8 @@ class BigtableBeamProcess():
             '--runner=dataflow',
             '--staging_location=gs://juantest/stage',
             '--temp_location=gs://juantest/temp',
-            '--setup_file=./beam_bigtable/setup.py',
-            '--extra_package=./beam_bigtable/dist/beam_bigtable-0.0.2.tar.gz'
+            "--setup_file=./beam_bigtable/setup.py",
+            "--extra_package=./beam_bigtable/dist/mypackage-0.1.0.tar.gz"
         ])
         
         parser = argparse.ArgumentParser()
