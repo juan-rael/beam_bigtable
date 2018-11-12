@@ -5,10 +5,8 @@ import io
 import os
 import sys
 from shutil import rmtree
+import setuptools
 
-from setuptools import find_packages, setup, Command
-
-# Package meta-data.
 NAME = 'beam_bigtable'
 DESCRIPTION = 'My short description for my project.'
 URL = 'https://github.com/juan-rael/beam_bigtable'
@@ -35,7 +33,7 @@ if not VERSION:
         exec(f.read(), about)
 else:
     about['__version__'] = VERSION
-setup(
+setuptools.setup(
     name=NAME,
     version=about['__version__'],
     description=DESCRIPTION,
@@ -45,7 +43,7 @@ setup(
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=('tests',)),
+    packages=setuptools.find_packages(exclude=('tests',)),
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
