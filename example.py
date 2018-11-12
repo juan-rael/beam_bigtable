@@ -190,7 +190,7 @@ class BigtableBeamProcess():
             '--staging_location=gs://juantest/stage',
             '--temp_location=gs://juantest/temp',
             "--setup_file=./beam_bigtable/setup.py",
-            "--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.1.tar.gz"
+            "--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.2.tar.gz"
         ])
         
         parser = argparse.ArgumentParser()
@@ -237,8 +237,8 @@ def main(args):
 
     my_beam = BigtableBeamProcess(project_id, instance_id, table_id)
     
-    #_generate_mutation_data(5)
-    # my_beam.write_to_table(5)
+    
+    my_beam.write_to_table(5)
     my_beam.read_rows()
 
 
