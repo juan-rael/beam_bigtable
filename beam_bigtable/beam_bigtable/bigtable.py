@@ -47,7 +47,7 @@ class WriteToBigtable(beam.DoFn):
         self._app_profile_id = app_profile_id
         self.flush_count = flush_count
         self.max_row_bytes = max_row_bytes
-        
+
     def start_bundle(self):
         if self.beam_options.credentials is None:
             self.client = bigtable.Client(project=self.beam_options.project_id,

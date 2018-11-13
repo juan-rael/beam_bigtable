@@ -20,7 +20,7 @@ def _generate_mutation_data(row_index):
     row_contents = []
     value = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(100))
     logging.info('Random',value)
-    column_family_id = 'cf'
+    column_family_id = 'cf1'
     start_index = 0
     end_index = row_index
     while start_index < end_index:
@@ -40,7 +40,8 @@ def _generate_mutation_data(row_index):
             }
             row_values["row_content"].append(row_content)
         #print "\n",row_values["row_content"],"\n"
-        row_values["table"] = "projects/grass-clump-479/instances/test-sangram-beam/tables/test-beam1" #'test-beam1'  # remove this
+        #row_values["table"] = "projects/grass-clump-479/instances/test-sangram-beam/tables/test-beam1" #'test-beam1'  # remove this
+        row_values["table"] = "projects/grass-clump-479/instances/quickstart-instance-php/tables/bigtable-php-table"
         row_contents.append(row_values)
         logging.info("\n",row_contents,"\n")
 
@@ -89,7 +90,6 @@ class GenerateDirectRows(beam.DoFn):
     """ Generates an iterator of DirectRow object to process on beam pipeline.
 
     """
-
     def process(self, row_values):
         """ Process beam pipeline using an element.
 
