@@ -11,7 +11,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 #from apache_beam.runners.PipelineRunner import PipelineRunner
 
 from google.cloud.bigtable.client import Client
-from google.cloud.bigtable import row
+
 from google.cloud.bigtable.row_set import RowSet
 from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfiguration)
 
@@ -91,6 +91,8 @@ class GenerateDirectRows(beam.DoFn):
 
     """
     def process(self, row_values):
+        from google.cloud.bigtable import row
+        import datetime
         """ Process beam pipeline using an element.
 
         :type row_value: dict
@@ -133,13 +135,29 @@ class BigtableBeamProcess():
             row.delete()
             row.commit()
 
-    def write_to_table(self, row_count):
+    def write_to_table(self, row_count,argv=[]):
         from beam_bigtable.bigtable import WriteToBigtable
 
         beam_options = BigtableConfiguration(self.project_id, self.instance_id, self.table_id)
 
+
+        argv.extend([
+            '--experiments=beam_fn_api',
+        #    '--runner=direct',
+            '--project=grass-clump-479',
+            '--requirements_file=requirements.txt',
+            '--runner=dataflow',
+            '--staging_location=gs://juantest/stage',
+            '--temp_location=gs://juantest/temp',
+            '--setup_file=./beam_bigtable/setup.py',
+            '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.3.tar.gz'
+        ])
+        
+        parser = argparse.ArgumentParser()
+        known_args, pipeline_args = parser.parse_known_args(argv)
+
         row_values = _generate_mutation_data(row_count)
-        pipeline_options = PipelineOptions()
+        pipeline_options = PipelineOptions(pipeline_args)
         with beam.Pipeline(options=pipeline_options) as p:
             (p
              | 'Generate Row Values' >> beam.Create(row_values)
@@ -239,7 +257,7 @@ def main(args):
     
     
     my_beam.write_to_table(5)
-    my_beam.read_rows()
+    #my_beam.read_rows()
 
 
 if __name__ == '__main__':
