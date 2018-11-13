@@ -239,7 +239,7 @@ def main(args):
     
     
     my_beam.write_to_table(5)
-    my_beam.read_rows()
+    # my_beam.read_rows()
 
 
 if __name__ == '__main__':
