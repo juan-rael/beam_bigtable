@@ -139,19 +139,6 @@ class BigtableBeamProcess():
         from beam_bigtable.bigtable import WriteToBigtable
 
         beam_options = BigtableConfiguration(self.project_id, self.instance_id, self.table_id)
-
-
-        argv.extend([
-            '--experiments=beam_fn_api',
-        #    '--runner=direct',
-            '--project=grass-clump-479',
-            '--requirements_file=requirements.txt',
-            '--runner=dataflow',
-            '--staging_location=gs://juantest/stage',
-            '--temp_location=gs://juantest/temp',
-            '--setup_file=./beam_bigtable/setup.py',
-            '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.3.tar.gz'
-        ])
         
         parser = argparse.ArgumentParser()
         known_args, pipeline_args = parser.parse_known_args(argv)
@@ -167,7 +154,6 @@ class BigtableBeamProcess():
         result = p.run()
         result.wait_until_finish()
 
-
     def write_to_table_max_mutations(self):
         from beam_bigtable.bigtable import WriteToBigtable
 
@@ -176,10 +162,13 @@ class BigtableBeamProcess():
         row_values = _generate_mutation_data(10000000000)
         pipeline_options = PipelineOptions()
         with beam.Pipeline(options=pipeline_options) as p:
-            (p
+            (
+             p
              | 'Generate Row Values' >> beam.Create(row_values)
              | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
-             | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options)))
+             | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options))
+            )
+
 
 
     def write_to_table_max_mutation_value(self):
@@ -198,18 +187,6 @@ class BigtableBeamProcess():
     def read_rows(self, argv=[]):
         from beam_bigtable.bigtable import ReadFromBigtable
         from apache_beam.options.pipeline_options import DebugOptions
-        
-        argv.extend([
-            '--experiments=beam_fn_api',
-        #    '--runner=direct',
-            '--project=grass-clump-479',
-            '--requirements_file=requirements.txt',
-            '--runner=dataflow',
-            '--staging_location=gs://juantest/stage',
-            '--temp_location=gs://juantest/temp',
-            "--setup_file=./beam_bigtable/setup.py",
-            "--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.2.tar.gz"
-        ])
         
         parser = argparse.ArgumentParser()
         known_args, pipeline_args = parser.parse_known_args(argv)
@@ -255,9 +232,19 @@ def main(args):
 
     my_beam = BigtableBeamProcess(project_id, instance_id, table_id)
     
-    
-    my_beam.write_to_table(5)
-    #my_beam.read_rows()
+    argv = [
+        '--experiments=beam_fn_api',
+    #   '--runner=direct',
+        '--project=grass-clump-479',
+        '--requirements_file=requirements.txt',
+        '--runner=dataflow',
+        '--staging_location=gs://juantest/stage',
+        '--temp_location=gs://juantest/temp',
+        '--setup_file=./beam_bigtable/setup.py',
+        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.3.tar.gz'
+    ]
+    my_beam.write_to_table(20, argv)
+    #my_beam.read_rows(argv)
 
 
 if __name__ == '__main__':
