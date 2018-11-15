@@ -109,14 +109,6 @@ class ReadFromBigtable(iobase.BoundedSource):
         logging.info(size)
         return size
 
-    def splitCheck(self, desired_bundle_size, options):
-        maximumNumberOfSplits = 4000
-        sizeEstimate = getEstimatedSizeBytes(options)
-        splits = splitBasedOnSamples(desired_bundle_size, getSampleRowKeys(options))
-        reduced = reduceSplits(splits, options, MAX_SPLIT_COUNT)
-        Collections.shuffle(reduced)
-        return ImmutableList.copyOf(reduced)
-
     def split(self, desired_bundle_size, start_position=None, stop_position=None):
         logging.info("ReadFromBigtable split")
         sample_row_keys = self._getTable().sample_row_keys()
