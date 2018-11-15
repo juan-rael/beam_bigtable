@@ -82,7 +82,7 @@ def main(args):
         '--staging_location=gs://juantest/stage',
         '--temp_location=gs://juantest/temp',
         '--setup_file=./beam_bigtable/setup.py',
-        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.3.tar.gz'
+        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.8.tar.gz'
     ]
     my_beam.read_rows(argv)
 

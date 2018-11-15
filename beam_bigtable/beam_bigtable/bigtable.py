@@ -125,15 +125,22 @@ class ReadFromBigtable(iobase.BoundedSource):
 
     def read(self, range_tracker):
         logging.info("ReadFromBigtable read")
-        read_rows = self._getTable().read_rows(
-            start_key=range_tracker.start_position(),
-            end_key=range_tracker.stop_position(),
-            # row_set=self.beam_options.row_set, # This needs to be handled in split
-            filter_=self.beam_options.filter_)
+        split = range_tracker.try_split(range_tracker.start_position())
+        if not split:
+            return
+        else:
+            read_rows = self._getTable().read_rows(
+                start_key=range_tracker.start_position(),
+                end_key=range_tracker.stop_position(),
+                # row_set=self.beam_options.row_set, # This needs to be handled in split
+                filter_=self.beam_options.filter_
+            )
 
-        for row in read_rows:
-            logging.info("yielding " + row.row_key)
-            yield row
+            for row in read_rows:
+                logging.info("yielding " + row.row_key)
+                if not range_tracker.try_claim(row.row_key):
+                    return
+                yield row
 
 
 class BigtableConfiguration(object):
