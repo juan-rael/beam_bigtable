@@ -20,6 +20,11 @@ class PrintKeys(beam.DoFn):
     def process(self, row):
         #print( row.row_key )
         return [row.row_key]
+def map_read_bigtable(row_split):
+    source = row_split.source
+    range_tracker = source.get_range_tracker(row_split.start_position, row_split.stop_position)
+    source_read = source.read(range_tracker)
+    return source_read
 class BigtableBeamProcess():
 
     def __init__(self, PROJECT_ID, INSTANCE_ID, TABLE_ID):
@@ -54,12 +59,14 @@ class BigtableBeamProcess():
         debug_options = pipeline_options.view_as(DebugOptions)
     
         logging.info(debug_options)
-
+        arg_output = 'gs://juantest/results/one_split_output'
         with beam.Pipeline(options=pipeline_options) as p:
-            numbers = (p 
+            rows_split = (p 
                 | 'Get Rows' >> beam.io.Read(read_from_bigtable)
-                |  'Split Rows' >> beam.core.Map(lambda number: 'line %d' % number.row_key)
+                |  'Split Rows' >> beam.core.Map(map_read_bigtable)
+                | 'Print keys' >> beam.ParDo( PrintKeys() )
             )
+            rows_split | 'write' >> beam.io.WriteToText( arg_output )
         result = p.run()
         result.wait_until_finish()
 
@@ -81,7 +88,7 @@ def main(args):
         '--staging_location=gs://juantest/stage',
         '--temp_location=gs://juantest/temp',
         '--setup_file=./beam_bigtable/setup.py',
-        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.3.tar.gz'
+        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.8.tar.gz'
     ]
     my_beam.read_rows(argv)
 
