@@ -220,8 +220,13 @@ class BigtableBeamProcess():
         )
         pipeline_options = PipelineOptions()
         with beam.Pipeline(options=pipeline_options) as p:
-            rows = (p | 'Read Rows' >> beam.io.Read(ReadFromBigtable(
-                bigtable_read_configuration)))
+            rows = (
+                p | 'Read Rows' >> beam.io.Read(
+                    ReadFromBigtable(
+                        bigtable_read_configuration
+                    )
+                )
+            )
 
 
 

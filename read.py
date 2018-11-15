@@ -18,7 +18,7 @@ from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfigura
 
 class PrintKeys(beam.DoFn):
     def process(self, row):
-        print( row.row_key )
+        #print( row.row_key )
         return [row.row_key]
 
 class BigtableBeamProcess():
@@ -73,8 +73,18 @@ def main(args):
     table_id = args.table
 
     my_beam = BigtableBeamProcess(project_id, instance_id, table_id)
-
-    my_beam.read_rows()
+    argv = [
+        '--experiments=beam_fn_api',
+    #   '--runner=direct',
+        '--project=grass-clump-479',
+        '--requirements_file=requirements.txt',
+        '--runner=dataflow',
+        '--staging_location=gs://juantest/stage',
+        '--temp_location=gs://juantest/temp',
+        '--setup_file=./beam_bigtable/setup.py',
+        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.3.tar.gz'
+    ]
+    my_beam.read_rows(argv)
 
 
 if __name__ == '__main__':
