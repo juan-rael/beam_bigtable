@@ -8,6 +8,7 @@ import logging
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.transforms.display import DisplayDataItem
 #from apache_beam.runners.PipelineRunner import PipelineRunner
 
 from google.cloud.bigtable.client import Client
@@ -20,6 +21,13 @@ class PrintKeys(beam.DoFn):
     def process(self, row):
         #print( row.row_key )
         return [row.row_key]
+    def display_data(self):
+        return {
+            'some_val': DisplayDataItem('something').drop_if_none(),
+            'non_val': DisplayDataItem(None).drop_if_none(),
+            'def_val': DisplayDataItem(True).drop_if_default(True),
+            'nodef_val': DisplayDataItem(True).drop_if_default(False)
+        }
 
 class BigtableBeamProcess():
 

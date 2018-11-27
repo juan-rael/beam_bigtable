@@ -1,1 +1,1 @@
-python read.py --project=grass-clump-479 --instance=quickstart-instance-php --table=bigtable-php-table
+python read.py --project=grass-clump-479 --instance=endurance --table=perf1DFN4UF2
