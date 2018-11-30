@@ -132,7 +132,7 @@ class ReadFromBigtable(iobase.BoundedSource):
             read_rows = self._getTable().read_rows(
                 start_key=range_tracker.start_position(),
                 end_key=range_tracker.stop_position(),
-                # row_set=self.beam_options.row_set, # This needs to be handled in split
+                row_set=self.beam_options.row_set,
                 filter_=self.beam_options.filter_
             )
 
