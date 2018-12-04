@@ -125,7 +125,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 
     def read(self, range_tracker):
         logging.info("ReadFromBigtable read")
-        split = range_tracker.try_split(range_tracker.start_position())
+        split = range_tracker.try_split(range_tracker.stop_position())
         if not split:
             return
         else:
