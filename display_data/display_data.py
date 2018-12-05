@@ -166,6 +166,7 @@ class DisplayData(object):
   #def add(self, ):
   def __str__(self):
     return str( [item.get_dict() for item in self.items] )
+  # Register the given display item
   def add(self, element, key):
     """
     Populates the list of display data items.
@@ -191,14 +192,17 @@ class DisplayData(object):
       DisplayDataItem(element,
       namespace=self.namespace,
       key=key))
+  # Register the fiven display item if the value is not null
   def addIfNotNull(self, element, key):
     if element is None:
       raise ValueError("Input display item cannot be null")
     self.add(element, key)
+  # Register the given display item if the value is different than the specified default.
   def addIfNotDefault(self, element, defaultValue):
     if element is None:
       raise ValueError("Input display item cannot be null")
     return self.addItemIf(self.equals(element,defaultValue), element)
+  # Register the given display item if the condition is true.
   def addItemIf(self, condition, spec):
     if not condition:
       return    
@@ -218,7 +222,7 @@ class DisplayData(object):
       raise ValueError("path argument cannot be null")
     absolutePath = latestPath.extend(path)
     existingComponent = visitedPathMap.get(absolutePath)
-    if existingComponent not None:
+    if existingComponent is not None:
       raise ValueError(
         "Specified path '{}' already used for "
         + "subcomponent {}. Subcomponents must be included using unique paths.".format(path, existingComponent)
