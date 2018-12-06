@@ -46,6 +46,8 @@ class WriteToBigtable(beam.DoFn):
         self._app_profile_id = app_profile_id
         self.flush_count = flush_count
         self.max_row_bytes = max_row_bytes
+        self.total_row = Metrics.counter(self.__class__, 'Write Total Row')
+        self.writed_row = Metrics.counter(self.__class__, 'Writed Row')
 
     def start_bundle(self):
         if self.beam_options.credentials is None:
@@ -59,17 +61,32 @@ class WriteToBigtable(beam.DoFn):
         self.instance = self.client.instance(self.beam_options.instance_id)
         self.table = self.instance.table(self.beam_options.table_id,
                                          self._app_profile_id)
+        self.total_row.inc(self.flush_count)
         self.batcher = MutationsBatcher(
             self.table, flush_count=self.flush_count,
             max_row_bytes=self.max_row_bytes)
 
     def process(self, row):
         # row.table = self.table
+        writed_row.inc()
         self.batcher.mutate(row)
 
     def finish_bundle(self):
         return self.batcher.flush()
+    def get_validate(self):
+        return self.table.exists()
+    def display_data(self):
+        #
+        return {
+            'source': DisplayDataItem(self.source.__class__, label='Read Source'),
+            'source_dd': self.source,
 
+            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id')
+            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id')
+            'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
+            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none()
+        }
+        
 
 class ReadFromBigtable(iobase.BoundedSource):
     """ Bigtable apache beam read source
@@ -85,7 +102,8 @@ class ReadFromBigtable(iobase.BoundedSource):
         logging.info("init ReadFromBigtable")
         self.beam_options = beam_options
         self.table = None
-
+        self.total_row = Metrics.counter(self.__class__, 'Read Total Row')
+        self.readed_row = Metrics.counter(self.__class__, 'Readed Row')
     def _getTable(self):
         if self.table is None:
             options = self.beam_options
@@ -135,14 +153,28 @@ class ReadFromBigtable(iobase.BoundedSource):
                 row_set=self.beam_options.row_set,
                 filter_=self.beam_options.filter_
             )
-
+            self.total_row.inc(len(read_rows))
             for row in read_rows:
                 logging.info("yielding " + row.row_key)
                 if not range_tracker.try_claim(row.row_key):
                     return
+                self.readed_row.inc()
                 yield row
+    def get_validate(self):
+        return self._getTable().exists()
+    def display_data(self):
+        ret = {
+            'source': DisplayDataItem(self.source.__class__, label='Read Source'),
+            'source_dd': self.source,
 
-
+            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id')
+            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id')
+            'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
+            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none()
+        }
+        if self.beam_options.filter_ is not None:
+            ret['rowFilter'] = DisplayDataItem(self.beam_options.filter_, label='Bigtable Row Filter')
+        return ret
 class BigtableConfiguration(object):
     """ Bigtable configuration variables.
 
@@ -163,7 +195,6 @@ class BigtableConfiguration(object):
         self.instance_id = instance_id
         self.table_id = table_id
         self.credentials = None
-
 
 class BigtableReadConfiguration(BigtableConfiguration):
     """ Bigtable read configuration variables.
