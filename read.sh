@@ -1,1 +1,1 @@
-python read.py --project=grass-clump-479 --instance=endurance --table=perf1DFN4UF2
+python read.py --project=grass-clump-479 --instance=cpp-integration-tests --table=table-8lzvsh0u

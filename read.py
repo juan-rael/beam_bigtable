@@ -19,15 +19,7 @@ from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfigura
 
 class PrintKeys(beam.DoFn):
     def process(self, row):
-        #print( row.row_key )
         return [row.row_key]
-    def display_data(self):
-        return {
-            'some_val': DisplayDataItem('something').drop_if_none(),
-            'non_val': DisplayDataItem(None).drop_if_none(),
-            'def_val': DisplayDataItem(True).drop_if_default(True),
-            'nodef_val': DisplayDataItem(True).drop_if_default(False)
-        }
 
 class BigtableBeamProcess():
 
@@ -69,7 +61,6 @@ class BigtableBeamProcess():
             get_data = (
                 p 
                 | 'Read Rows' >> beam.io.Read(read_from_bigtable)
-                | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
                 | 'Print keys' >> beam.ParDo( PrintKeys() )
             )
             get_data | 'write' >> beam.io.WriteToText( arg_output )
@@ -92,9 +83,7 @@ def main(args):
         '--staging_location=gs://juantest/stage',
         '--temp_location=gs://juantest/temp',
         '--setup_file=./beam_bigtable_package/setup.py',
-        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.9.tar.gz',
-        '--num_workers=10',
-        '--max_num_workers=1000'
+        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.29.tar.gz'
     ]
     my_beam.read_rows(argv)
 

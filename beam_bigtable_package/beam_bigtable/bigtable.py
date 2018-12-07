@@ -6,7 +6,10 @@ from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 from google.cloud import bigtable
 
 from google.cloud.bigtable.batcher import MutationsBatcher
-
+from apache_beam.metrics.metric import Metrics
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
 
 class WriteToBigtable(beam.DoFn):
     """ Creates the connector can call and add_row to the batcher using each
@@ -46,8 +49,6 @@ class WriteToBigtable(beam.DoFn):
         self._app_profile_id = app_profile_id
         self.flush_count = flush_count
         self.max_row_bytes = max_row_bytes
-        self.total_row = Metrics.counter(self.__class__, 'Write Total Row')
-        self.writed_row = Metrics.counter(self.__class__, 'Writed Row')
 
     def start_bundle(self):
         if self.beam_options.credentials is None:
@@ -61,14 +62,14 @@ class WriteToBigtable(beam.DoFn):
         self.instance = self.client.instance(self.beam_options.instance_id)
         self.table = self.instance.table(self.beam_options.table_id,
                                          self._app_profile_id)
-        self.total_row.inc(self.flush_count)
+
         self.batcher = MutationsBatcher(
             self.table, flush_count=self.flush_count,
             max_row_bytes=self.max_row_bytes)
-
+        self.written = Metrics.counter(self.__class__, 'Written Row')
     def process(self, row):
         # row.table = self.table
-        self.writed_row.inc()
+        self.written.inc()
         self.batcher.mutate(row)
 
     def finish_bundle(self):
@@ -78,13 +79,10 @@ class WriteToBigtable(beam.DoFn):
     def display_data(self):
         #
         return {
-            'source': DisplayDataItem(self.source.__class__, label='Read Source'),
-            'source_dd': self.source,
-
-            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id')
-            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id')
+            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
+            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
-            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none()
+            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none(),
         }
         
 
@@ -102,14 +100,14 @@ class ReadFromBigtable(iobase.BoundedSource):
         logging.info("init ReadFromBigtable")
         self.beam_options = beam_options
         self.table = None
-        self.total_row = Metrics.counter(self.__class__, 'Read Total Row')
-        self.readed_row = Metrics.counter(self.__class__, 'Readed Row')
+        self.read_row = Metrics.counter(self.__class__, 'Read Row')
     def _getTable(self):
         if self.table is None:
             options = self.beam_options
             client = bigtable.Client(
                 project=options.project_id,
-                credentials=self.beam_options.credentials)
+                credentials=self.beam_options.credentials,
+                admin=True)
             instance = client.instance(options.instance_id)
             self.table = instance.table(options.table_id)
         return self.table
@@ -120,7 +118,7 @@ class ReadFromBigtable(iobase.BoundedSource):
     def __setstate__(self, options):
         self.beam_options = options
         self.table = None
-
+        self.read_row = Metrics.counter(self.__class__, 'Read Row')
     def estimate_size(self):
         logging.info("ReadFromBigtable estimate_size")
         size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
@@ -143,38 +141,36 @@ class ReadFromBigtable(iobase.BoundedSource):
 
     def read(self, range_tracker):
         logging.info("ReadFromBigtable read")
-        split = range_tracker.try_split(range_tracker.stop_position())
-        if not split:
-            return
-        else:
-            read_rows = self._getTable().read_rows(
-                start_key=range_tracker.start_position(),
-                end_key=range_tracker.stop_position(),
-                row_set=self.beam_options.row_set,
-                filter_=self.beam_options.filter_
-            )
-            self.total_row.inc(len(read_rows))
-            for row in read_rows:
-                logging.info("yielding " + row.row_key)
-                if not range_tracker.try_claim(row.row_key):
-                    return
-                self.readed_row.inc()
-                yield row
+        self.read_row = Metrics.counter(self.__class__, 'Read Row')
+        read_rows = self._getTable().read_rows(
+            start_key=range_tracker.start_position(),
+            end_key=range_tracker.stop_position(),
+            row_set=self.beam_options.row_set,
+            filter_=self.beam_options.filter_
+        )
+        for row in read_rows:
+            logging.debug("yielding " + row.row_key)
+            self.read_rows.inc()
+            yield row
     def get_validate(self):
         return self._getTable().exists()
     def display_data(self):
         ret = {
-            'source': DisplayDataItem(self.source.__class__, label='Read Source'),
-            'source_dd': self.source,
-
-            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id')
-            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id')
+            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
+            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
-            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none()
+            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none(),
         }
         if self.beam_options.filter_ is not None:
             ret['rowFilter'] = DisplayDataItem(self.beam_options.filter_, label='Bigtable Row Filter')
         return ret
+    def get_key_ranges(self):
+        pass
+    def get_table_id(self):
+        return self.beam_options.table_id
+    def get_bigtable_options(self):
+        return self.beam_options
+
 class BigtableConfiguration(object):
     """ Bigtable configuration variables.
 
@@ -212,7 +208,9 @@ class BigtableReadConfiguration(BigtableConfiguration):
                     each row.
     """
 
-    def __init__(self, project_id, instance_id, table_id, row_set=None, filter_=None):
+    def __init__(self, project_id, instance_id, table_id, row_set=None, filter_=None, ranges_=None):
         super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
         self.row_set = row_set
         self.filter_ = filter_
+        # Add the Ranges
+        self.ranges_ = ranges_
