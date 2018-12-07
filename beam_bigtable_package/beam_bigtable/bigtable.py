@@ -68,7 +68,7 @@ class WriteToBigtable(beam.DoFn):
 
     def process(self, row):
         # row.table = self.table
-        writed_row.inc()
+        self.writed_row.inc()
         self.batcher.mutate(row)
 
     def finish_bundle(self):
