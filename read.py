@@ -76,14 +76,14 @@ def main(args):
     my_beam = BigtableBeamProcess(project_id, instance_id, table_id)
     argv = [
         '--experiments=beam_fn_api',
-    #   '--runner=direct',
+        '--runner=direct',
         '--project=grass-clump-479',
         '--requirements_file=requirements.txt',
-        '--runner=dataflow',
+    #    '--runner=dataflow',
         '--staging_location=gs://juantest/stage',
         '--temp_location=gs://juantest/temp',
         '--setup_file=./beam_bigtable_package/setup.py',
-        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.29.tar.gz'
+        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.39.tar.gz'
     ]
     my_beam.read_rows(argv)
 

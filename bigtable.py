@@ -100,7 +100,7 @@ class ReadFromBigtable(iobase.BoundedSource):
         logging.info("init ReadFromBigtable")
         self.beam_options = beam_options
         self.table = None
-        self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+        self.read_rows = Metrics.counter(self.__class__, 'Read Row')
     def _getTable(self):
         if self.table is None:
             options = self.beam_options
@@ -118,13 +118,14 @@ class ReadFromBigtable(iobase.BoundedSource):
     def __setstate__(self, options):
         self.beam_options = options
         self.table = None
-        self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+        self.read_rows = Metrics.counter(self.__class__, 'Read Row')
 
     def estimate_size(self):
         logging.info("ReadFromBigtable estimate_size")
         size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
         logging.info(size)
         return size
+
     def split(self, desired_bundle_size, start_position=None, stop_position=None):
         logging.info("ReadFromBigtable split")
         sample_row_keys = self._getTable().sample_row_keys()
@@ -149,7 +150,7 @@ class ReadFromBigtable(iobase.BoundedSource):
         )
         for row in read_rows:
             logging.debug("yielding " + row.row_key)
-            self.records_read.inc()
+            self.read_rows
             yield row
     def get_validate(self):
         return self._getTable().exists()
