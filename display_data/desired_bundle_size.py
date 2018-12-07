@@ -21,7 +21,7 @@ def get_estimated_size_bytes_based_on_samples(sample_row):
 	for respose in samples:
 		current_end_key = int.from_bytes(response.row_key(), byteorder='big')
 		current_offset = response.offset_bytes()
-		if !current_start_key == None and current_start_key == current_end_key:
+		if current_start_key is not None and current_start_key == current_end_key:
 			# Skip an empty region.
 			last_offset = current_offset
 			continue
