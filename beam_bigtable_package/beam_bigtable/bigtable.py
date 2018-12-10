@@ -19,25 +19,6 @@ class WriteToBigtable(beam.DoFn):
 
     :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
     :param beam_options: Class `~bigtable_configuration.BigtableConfiguration`.
-
-    :type flush_count: int
-    :param flush_count: (Optional) Max number of rows to flush. If it
-    reaches the max number of rows it calls finish_batch() to mutate the
-    current row batch. Default is FLUSH_COUNT (1000 rows).
-
-    :type max_mutations: int
-    :param max_mutations: (Optional)  Max number of row mutations to flush.
-    If it reaches the max number of row mutations it calls finish_batch() to
-    mutate the current row batch. Default is MAX_MUTATIONS (100000 mutations).
-
-    :type max_row_bytes: int
-    :param max_row_bytes: (Optional) Max number of row mutations size to
-    flush. If it reaches the max number of row mutations size it calls
-    finish_batch() to mutate the current row batch. Default is MAX_ROW_BYTES
-    (5 MB).
-
-    :type app_profile_id: str
-    :param app_profile_id: (Optional) The unique name of the AppProfile.
     """
 
     # TODO: app_profile_id should be in beam_options
@@ -106,8 +87,7 @@ class ReadFromBigtable(iobase.BoundedSource):
             options = self.beam_options
             client = bigtable.Client(
                 project=options.project_id,
-                credentials=self.beam_options.credentials,
-                admin=True)
+                credentials=self.beam_options.credentials)
             instance = client.instance(options.instance_id)
             self.table = instance.table(options.table_id)
         return self.table
@@ -152,12 +132,14 @@ class ReadFromBigtable(iobase.BoundedSource):
 
     def display_data(self):
         ret = {
-            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
+            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id', key='projectId'),
+            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id',key='instanceId'),
+            'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id', key='tableId'),
+            'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
         }
         if self.beam_options.filter_ is not None:
-            ret['rowFilter'] = DisplayDataItem(self.beam_options.filter_, label='Bigtable Row Filter')
+            for (i,value) in enumerate(self.beam_options.filter_.filters):
+                ret['rowFilter{}'.format(i)] = DisplayDataItem(str(value.to_pb()), label='Bigtable Row Filter {}'.format(i), key='rowFilter{}'.format(i))
         return ret
 
 
@@ -182,13 +164,39 @@ class BigtableConfiguration(object):
         self.table_id = table_id
         self.credentials = None
 class BigtableWriteConfiguration(BigtableConfiguration):
+    """
+    :type flush_count: int
+    :param flush_count: (Optional) Max number of rows to flush. If it
+    reaches the max number of rows it calls finish_batch() to mutate the
+    current row batch. Default is FLUSH_COUNT (1000 rows).
+
+    :type max_mutations: int
+    :param max_mutations: (Optional)  Max number of row mutations to flush.
+    If it reaches the max number of row mutations it calls finish_batch() to
+    mutate the current row batch. Default is MAX_MUTATIONS (100000 mutations).
+
+    :type max_row_bytes: int
+    :param max_row_bytes: (Optional) Max number of row mutations size to
+    flush. If it reaches the max number of row mutations size it calls
+    finish_batch() to mutate the current row batch. Default is MAX_ROW_BYTES
+    (5 MB).
+
+    :type app_profile_id: str
+    :param app_profile_id: (Optional) The unique name of the AppProfile.
+    """
+    
     def __init__(self, project_id, instance_id, table, flush_count=None, max_row_bytes=None,
                  app_profile_id=None):
         super(BigtableWriteConfiguration, self).__init__(project_id, instance_id, table_id)
         self.flush_count = flush_count
         self.max_row_bytes = max_row_bytes
         self.app_profile_id = app_profile_id
-
+    def __str__(self):
+        return json.dumps({
+            'project_id': self.project_id,
+            'instance_id': self.instance_id,
+            'table_id': self.table_id,
+        })
 class BigtableReadConfiguration(BigtableConfiguration):
     """ Bigtable read configuration variables.
 
@@ -209,5 +217,18 @@ class BigtableReadConfiguration(BigtableConfiguration):
         super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
         self.row_set = row_set
         self.filter_ = filter_
-        # Add the Ranges
-        self.ranges_ = ranges_
+    def __str__(self):
+        import json
+        if self.filter_ is not None:
+            filters = str(self.filter_.to_pb())
+        if self.row_set is not None:
+            row_set = self.row_set.row_keys
+            for r in self.row_set.row_ranges:
+                row_set.append(r.get_range_kwargs())
+        return json.dumps({
+            'project_id': self.project_id,
+            'instance_id': self.instance_id,
+            'table_id': self.table_id,
+            'row_set': row_set,
+            'filter_': filters
+        })
