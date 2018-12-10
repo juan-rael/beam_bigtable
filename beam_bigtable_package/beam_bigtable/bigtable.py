@@ -69,24 +69,22 @@ class WriteToBigtable(beam.DoFn):
             self.table, flush_count=self.flush_count,
             max_row_bytes=self.max_row_bytes)
         self.written = Metrics.counter(self.__class__, 'Written Row')
+
     def process(self, row):
-        # row.table = self.table
         self.written.inc()
         self.batcher.mutate(row)
 
     def finish_bundle(self):
         return self.batcher.flush()
-    def get_validate(self):
-        return self.table.exists()
+
     def display_data(self):
-        #
         return {
             'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
             'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
-            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none(),
         }
 
+    
 class ReadFromBigtable(iobase.BoundedSource):
     """ Bigtable apache beam read source
     :type split_keys: dict
@@ -102,6 +100,7 @@ class ReadFromBigtable(iobase.BoundedSource):
         self.beam_options = beam_options
         self.table = None
         self.read_row = Metrics.counter(self.__class__, 'read')
+
     def _getTable(self):
         if self.table is None:
             options = self.beam_options
@@ -122,12 +121,10 @@ class ReadFromBigtable(iobase.BoundedSource):
         self.read_row = Metrics.counter(self.__class__, 'read')
 
     def estimate_size(self):
-        logging.info("ReadFromBigtable estimate_size")
         size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
-        logging.info(size)
         return size
+
     def split(self, desired_bundle_size, start_position=None, stop_position=None):
-        logging.info("ReadFromBigtable split")
         sample_row_keys = self._getTable().sample_row_keys()
         start_key = b''
         for sample_row_key in sample_row_keys:
@@ -137,23 +134,22 @@ class ReadFromBigtable(iobase.BoundedSource):
            yield iobase.SourceBundle(1, self, start_key, b'')
 
     def get_range_tracker(self, start_position, stop_position):
-        logging.info("ReadFromBigtable get_range_tracker")
         return LexicographicKeyRangeTracker(start_position, stop_position)
 
     def read(self, range_tracker):
-        logging.info("ReadFromBigtable reads")
         read_rows = self._getTable().read_rows(
             start_key=range_tracker.start_position(),
             end_key=range_tracker.stop_position(),
-            row_set=self.beam_options.row_set,
             filter_=self.beam_options.filter_
         )
+
         for row in read_rows:
-            logging.debug("yielding " + row.row_key)
             if not range_tracker.try_claim(row.row_key):
+                # there needs to be a way to cancel the request.
                 return
             self.read_row.inc()
             yield row
+
     def display_data(self):
         ret = {
             'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
@@ -163,6 +159,7 @@ class ReadFromBigtable(iobase.BoundedSource):
         if self.beam_options.filter_ is not None:
             ret['rowFilter'] = DisplayDataItem(self.beam_options.filter_, label='Bigtable Row Filter')
         return ret
+
 
 class BigtableConfiguration(object):
     """ Bigtable configuration variables.
