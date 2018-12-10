@@ -40,6 +40,10 @@ class WriteToBigtable(beam.DoFn):
     :param app_profile_id: (Optional) The unique name of the AppProfile.
     """
 
+    # TODO: app_profile_id should be in beam_options
+    # TODO: flush_count / max_row_bytes should be in BigtableConfiguration, 
+    #       that would require either a subclass of BigtableConfiguration or 
+    #       a map-based configuration for overrides
     def __init__(self, beam_options, flush_count=None, max_row_bytes=None,
                  app_profile_id=None):
         super(WriteToBigtable, self).__init__(beam_options)
@@ -53,6 +57,7 @@ class WriteToBigtable(beam.DoFn):
         self.max_row_bytes = max_row_bytes
 
     def start_bundle(self):
+        # TODO: admin should be False.
         if self.beam_options.credentials is None:
             self.client = bigtable.Client(project=self.beam_options.project_id,
                                           admin=True)
@@ -68,6 +73,8 @@ class WriteToBigtable(beam.DoFn):
         self.batcher = MutationsBatcher(
             self.table, flush_count=self.flush_count,
             max_row_bytes=self.max_row_bytes)
+        
+        # TODO: This should be in the constructor, and __setstate__
         self.written = Metrics.counter(self.__class__, 'Written Row')
 
     def process(self, row):
