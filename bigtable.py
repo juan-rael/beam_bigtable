@@ -157,12 +157,14 @@ class ReadFromBigtable(iobase.BoundedSource):
             yield row
     def display_data(self):
         ret = {
-            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
+            'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id', key='projectId'),
+            'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id',key='instanceId'),
+            'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id', key='tableId'),
+            'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
         }
         if self.beam_options.filter_ is not None:
-            ret['rowFilter'] = DisplayDataItem(self.beam_options.filter_, label='Bigtable Row Filter')
+            for (i,value) in enumerate(self.beam_options.filter_.filters):
+                ret['rowFilter{}'.format(i)] = DisplayDataItem(str(value.to_pb()), label='Bigtable Row Filter {}'.format(i), key='rowFilter{}'.format(i))
         return ret
 
 class BigtableConfiguration(object):
@@ -202,9 +204,22 @@ class BigtableReadConfiguration(BigtableConfiguration):
                     each row.
     """
 
-    def __init__(self, project_id, instance_id, table_id, row_set=None, filter_=None, ranges_=None):
+    def __init__(self, project_id, instance_id, table_id, row_set=None, filter_=None):
         super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
         self.row_set = row_set
         self.filter_ = filter_
-        # Add the Ranges
-        self.ranges_ = ranges_
+    def __str__(self):
+        import json
+        if self.filter_ is not None:
+            filters = str(self.filter_.to_pb())
+        if self.row_set is not None:
+            row_set = self.row_set.row_keys
+            for r in self.row_set.row_ranges:
+                row_set.append(r.get_range_kwargs())
+        return json.dumps({
+            'project_id': self.project_id,
+            'instance_id': self.instance_id,
+            'table_id': self.table_id,
+            'row_set': row_set,
+            'filter_': filters
+        })
