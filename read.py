@@ -16,7 +16,6 @@ from google.cloud.bigtable.client import Client
 from google.cloud.bigtable.row_set import RowSet
 from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfiguration)
 
-
 class PrintKeys(beam.DoFn):
     def process(self, row):
         return [row.row_key]
@@ -44,7 +43,9 @@ class BigtableBeamProcess():
     def read_rows(self, argv=[]):
         from beam_bigtable.bigtable import ReadFromBigtable
         from apache_beam.options.pipeline_options import DebugOptions
-        
+        from apache_beam.metrics import Metrics
+        from apache_beam.metrics.metric import MetricsFilter
+
         parser = argparse.ArgumentParser()
         known_args, pipeline_args = parser.parse_known_args(argv)
 
@@ -67,7 +68,12 @@ class BigtableBeamProcess():
 
             result = p.run()
             result.wait_until_finish()
-
+            if (not hasattr(result, 'has_job') or result.has_job):
+                read_row_filter = MetricsFilter().with_name('read')
+                query_result = result.metrics().query(read_row_filter)
+                if query_result['counters']:
+                    read_row_counter = query_result['counters'][0]
+                    logging.info('read rows: %d', read_row_counter.commited)
 def main(args):
     project_id = args.project
     instance_id=args.instance
@@ -76,14 +82,15 @@ def main(args):
     my_beam = BigtableBeamProcess(project_id, instance_id, table_id)
     argv = [
         '--experiments=beam_fn_api',
-        '--runner=direct',
+    #    '--runner=direct',
         '--project=grass-clump-479',
         '--requirements_file=requirements.txt',
-    #    '--runner=dataflow',
+        '--runner=dataflow',
         '--staging_location=gs://juantest/stage',
         '--temp_location=gs://juantest/temp',
         '--setup_file=./beam_bigtable_package/setup.py',
-        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.39.tar.gz'
+        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.40.tar.gz',
+        '--template_location=gs://juantest/templates/read_bigtable'
     ]
     my_beam.read_rows(argv)
 

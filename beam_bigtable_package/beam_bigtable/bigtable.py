@@ -10,6 +10,8 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 
 class WriteToBigtable(beam.DoFn):
     """ Creates the connector can call and add_row to the batcher using each
@@ -84,7 +86,6 @@ class WriteToBigtable(beam.DoFn):
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
             'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none(),
         }
-        
 
 class ReadFromBigtable(iobase.BoundedSource):
     """ Bigtable apache beam read source
@@ -100,7 +101,7 @@ class ReadFromBigtable(iobase.BoundedSource):
         logging.info("init ReadFromBigtable")
         self.beam_options = beam_options
         self.table = None
-        self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+        self.read_row = Metrics.counter(self.__class__, 'read')
     def _getTable(self):
         if self.table is None:
             options = self.beam_options
@@ -118,7 +119,7 @@ class ReadFromBigtable(iobase.BoundedSource):
     def __setstate__(self, options):
         self.beam_options = options
         self.table = None
-        self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+        self.read_row = Metrics.counter(self.__class__, 'read')
 
     def estimate_size(self):
         logging.info("ReadFromBigtable estimate_size")
@@ -140,7 +141,7 @@ class ReadFromBigtable(iobase.BoundedSource):
         return LexicographicKeyRangeTracker(start_position, stop_position)
 
     def read(self, range_tracker):
-        logging.info("ReadFromBigtable read")
+        logging.info("ReadFromBigtable reads")
         read_rows = self._getTable().read_rows(
             start_key=range_tracker.start_position(),
             end_key=range_tracker.stop_position(),
@@ -149,16 +150,15 @@ class ReadFromBigtable(iobase.BoundedSource):
         )
         for row in read_rows:
             logging.debug("yielding " + row.row_key)
-            self.records_read.inc()
+            if not range_tracker.try_claim(row.row_key):
+                return
+            self.read_row.inc()
             yield row
-    def get_validate(self):
-        return self._getTable().exists()
     def display_data(self):
         ret = {
             'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
             'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
-            'withValidation': DisplayDataItem(self.get_validate(), label='Check is table exists').drop_if_none(),
         }
         if self.beam_options.filter_ is not None:
             ret['rowFilter'] = DisplayDataItem(self.beam_options.filter_, label='Bigtable Row Filter')
