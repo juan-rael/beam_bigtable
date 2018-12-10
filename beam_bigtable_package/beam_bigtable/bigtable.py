@@ -20,7 +20,6 @@ class WriteToBigtable(beam.DoFn):
     :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
     :param beam_options: Class `~bigtable_configuration.BigtableConfiguration`.
     """
-
     # TODO: app_profile_id should be in beam_options
     # TODO: flush_count / max_row_bytes should be in BigtableConfiguration, 
     #       that would require either a subclass of BigtableConfiguration or 
@@ -36,6 +35,7 @@ class WriteToBigtable(beam.DoFn):
         self.flush_count = self.beam_options.flush_count
         self.max_row_bytes = self.beam_options.max_row_bytes
         self.written = Metrics.counter(self.__class__, 'Written Row')
+
     def start_bundle(self):
         if self.beam_options.credentials is None:
             self.client = bigtable.Client(project=self.beam_options.project_id)
@@ -163,6 +163,7 @@ class BigtableConfiguration(object):
         self.instance_id = instance_id
         self.table_id = table_id
         self.credentials = None
+
 class BigtableWriteConfiguration(BigtableConfiguration):
     """
     :type flush_count: int
@@ -184,13 +185,14 @@ class BigtableWriteConfiguration(BigtableConfiguration):
     :type app_profile_id: str
     :param app_profile_id: (Optional) The unique name of the AppProfile.
     """
-    
+
     def __init__(self, project_id, instance_id, table, flush_count=None, max_row_bytes=None,
                  app_profile_id=None):
         super(BigtableWriteConfiguration, self).__init__(project_id, instance_id, table_id)
         self.flush_count = flush_count
         self.max_row_bytes = max_row_bytes
         self.app_profile_id = app_profile_id
+
     def __str__(self):
         return json.dumps({
             'project_id': self.project_id,
@@ -217,6 +219,7 @@ class BigtableReadConfiguration(BigtableConfiguration):
         super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
         self.row_set = row_set
         self.filter_ = filter_
+        
     def __str__(self):
         import json
         if self.filter_ is not None:
