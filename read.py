@@ -14,7 +14,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from google.cloud.bigtable.client import Client
 
 from google.cloud.bigtable.row_set import RowSet
-from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfiguration)
+from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfiguration, WriteToBigtable)
 
 class PrintKeys(beam.DoFn):
     def process(self, row):
@@ -52,19 +52,16 @@ class BigtableBeamProcess():
         config = BigtableReadConfiguration(self.project_id, self.instance_id, self.table_id, None, None)
         read_from_bigtable = ReadFromBigtable(config)
         pipeline_options = PipelineOptions(pipeline_args)
-        # pipeline_options.view_as(SetupOptions).save_main_session = True
         debug_options = pipeline_options.view_as(DebugOptions)
-    
-        logging.info(debug_options)
 
-        arg_output = 'gs://juantest/results/one_output'
+        write_config = BigtableWriteConfiguration(self.project_id, self.instance_id, self.table_id)
         with beam.Pipeline(options=pipeline_options) as p:
             get_data = (
                 p 
                 | 'Read Rows' >> beam.io.Read(read_from_bigtable)
                 | 'Print keys' >> beam.ParDo( PrintKeys() )
             )
-            get_data | 'write' >> beam.io.WriteToText( arg_output )
+            get_data 'write' >> beam.ParDo(WriteToBigtable(write_config))
 
             result = p.run()
             result.wait_until_finish()

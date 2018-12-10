@@ -65,7 +65,6 @@ class WriteToBigtable(beam.DoFn):
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
         }
 
-    
 class ReadFromBigtable(iobase.BoundedSource):
     """ Bigtable apache beam read source
     :type split_keys: dict
@@ -137,11 +136,18 @@ class ReadFromBigtable(iobase.BoundedSource):
             'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id', key='tableId'),
             'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
         }
+        if self.beam_options.row_set is not None:
+            i = 0
+            for value in self.beam_options.row_set.row_keys:
+                ret['rowSet{}'.format(i)] = DisplayDataItem(str(value), label='Bigtable Row Set {}'.format(i), key='rowSet{}'.format(i))
+                i = i+1
+            for (i,value) in enumerate(self.beam_options.row_set.row_ranges):
+                ret['rowSet{}'.format(i)] = DisplayDataItem(str(value.get_range_kwargs()), label='Bigtable Row Set {}'.format(i), key='rowSet{}'.format(i))
+                i = i+1
         if self.beam_options.filter_ is not None:
             for (i,value) in enumerate(self.beam_options.filter_.filters):
                 ret['rowFilter{}'.format(i)] = DisplayDataItem(str(value.to_pb()), label='Bigtable Row Filter {}'.format(i), key='rowFilter{}'.format(i))
         return ret
-
 
 class BigtableConfiguration(object):
     """ Bigtable configuration variables.
@@ -186,7 +192,7 @@ class BigtableWriteConfiguration(BigtableConfiguration):
     :param app_profile_id: (Optional) The unique name of the AppProfile.
     """
 
-    def __init__(self, project_id, instance_id, table, flush_count=None, max_row_bytes=None,
+    def __init__(self, project_id, instance_id, table_id, flush_count=None, max_row_bytes=None,
                  app_profile_id=None):
         super(BigtableWriteConfiguration, self).__init__(project_id, instance_id, table_id)
         self.flush_count = flush_count
@@ -199,6 +205,7 @@ class BigtableWriteConfiguration(BigtableConfiguration):
             'instance_id': self.instance_id,
             'table_id': self.table_id,
         })
+
 class BigtableReadConfiguration(BigtableConfiguration):
     """ Bigtable read configuration variables.
 
@@ -219,7 +226,7 @@ class BigtableReadConfiguration(BigtableConfiguration):
         super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
         self.row_set = row_set
         self.filter_ = filter_
-        
+
     def __str__(self):
         import json
         if self.filter_ is not None:
