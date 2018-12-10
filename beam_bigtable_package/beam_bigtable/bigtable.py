@@ -44,28 +44,24 @@ class WriteToBigtable(beam.DoFn):
     # TODO: flush_count / max_row_bytes should be in BigtableConfiguration, 
     #       that would require either a subclass of BigtableConfiguration or 
     #       a map-based configuration for overrides
-    def __init__(self, beam_options, flush_count=None, max_row_bytes=None,
-                 app_profile_id=None):
+    def __init__(self, beam_options):
         super(WriteToBigtable, self).__init__(beam_options)
         self.beam_options = beam_options
         self.client = None
         self.instance = None
         self.table = None
         self.batcher = None
-        self._app_profile_id = app_profile_id
-        self.flush_count = flush_count
-        self.max_row_bytes = max_row_bytes
-
+        self._app_profile_id = self.beam_options.app_profile_id
+        self.flush_count = self.beam_options.flush_count
+        self.max_row_bytes = self.beam_options.max_row_bytes
+        self.written = Metrics.counter(self.__class__, 'Written Row')
     def start_bundle(self):
-        # TODO: admin should be False.
         if self.beam_options.credentials is None:
-            self.client = bigtable.Client(project=self.beam_options.project_id,
-                                          admin=True)
+            self.client = bigtable.Client(project=self.beam_options.project_id)
         else:
             self.client = bigtable.Client(
                 project=self.beam_options.project_id,
-                credentials=self.beam_options.credentials,
-                admin=True)
+                credentials=self.beam_options.credentials)
         self.instance = self.client.instance(self.beam_options.instance_id)
         self.table = self.instance.table(self.beam_options.table_id,
                                          self._app_profile_id)
@@ -73,9 +69,6 @@ class WriteToBigtable(beam.DoFn):
         self.batcher = MutationsBatcher(
             self.table, flush_count=self.flush_count,
             max_row_bytes=self.max_row_bytes)
-        
-        # TODO: This should be in the constructor, and __setstate__
-        self.written = Metrics.counter(self.__class__, 'Written Row')
 
     def process(self, row):
         self.written.inc()
@@ -188,6 +181,13 @@ class BigtableConfiguration(object):
         self.instance_id = instance_id
         self.table_id = table_id
         self.credentials = None
+class BigtableWriteConfiguration(BigtableConfiguration):
+    def __init__(self, project_id, instance_id, table, flush_count=None, max_row_bytes=None,
+                 app_profile_id=None):
+        super(BigtableWriteConfiguration, self).__init__(project_id, instance_id, table_id)
+        self.flush_count = flush_count
+        self.max_row_bytes = max_row_bytes
+        self.app_profile_id = app_profile_id
 
 class BigtableReadConfiguration(BigtableConfiguration):
     """ Bigtable read configuration variables.
