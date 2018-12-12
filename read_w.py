@@ -14,13 +14,14 @@ from apache_beam.transforms.display import DisplayDataItem
 from google.cloud.bigtable.client import Client
 
 from google.cloud.bigtable.row_set import RowSet
-from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfiguration, BigtableWriteConfiguration, WriteToBigtable, ReadFromBigtable)
+from beam_bigtable.bigtable import (BigtableConfiguration, BigtableReadConfiguration, WriteToBigtable)
 
 class PrintKeys(beam.DoFn):
     def process(self, row):
         return [row.row_key]
 
 class BigtableBeamProcess():
+
     def __init__(self, PROJECT_ID, INSTANCE_ID, TABLE_ID):
         self.project_id = PROJECT_ID
         self.instance_id = INSTANCE_ID
@@ -60,9 +61,16 @@ class BigtableBeamProcess():
                 | 'Read Rows' >> beam.io.Read(read_from_bigtable)
                 | 'Print keys' >> beam.ParDo( PrintKeys() )
             )
+            get_data 'write' >> beam.ParDo(WriteToBigtable(write_config))
 
             result = p.run()
             result.wait_until_finish()
+            if (not hasattr(result, 'has_job') or result.has_job):
+                read_row_filter = MetricsFilter().with_name('read')
+                query_result = result.metrics().query(read_row_filter)
+                if query_result['counters']:
+                    read_row_counter = query_result['counters'][0]
+                    logging.info('read rows: %d', read_row_counter.commited)
 def main(args):
     project_id = args.project
     instance_id=args.instance
@@ -70,14 +78,16 @@ def main(args):
 
     my_beam = BigtableBeamProcess(project_id, instance_id, table_id)
     argv = [
+        '--experiments=beam_fn_api',
+    #    '--runner=direct',
         '--project=grass-clump-479',
         '--requirements_file=requirements.txt',
         '--runner=dataflow',
         '--staging_location=gs://juantest/stage',
         '--temp_location=gs://juantest/temp',
         '--setup_file=./beam_bigtable_package/setup.py',
-        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.65.tar.gz',
-    #    '--template_location=gs://juantest/templates/read_bigtable' # Create a template in that path.
+        '--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.1.40.tar.gz',
+        '--template_location=gs://juantest/templates/read_bigtable'
     ]
     my_beam.read_rows(argv)
 
