@@ -27,8 +27,13 @@ class PrintKeys(beam.DoFn):
 		self.printing.inc()
 		return [row.row_key]
 
-def run(argv=None):
+def run(args):
 	from beam_bigtable.bigtable import BigtableReadConfiguration,ReadFromBigtable
+
+	project_id = args.project
+	instance_id=args.instance
+	table_id = args.table
+
 	#argv_input = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 	argv = [
 		'--project=grass-clump-479',
@@ -46,7 +51,7 @@ def run(argv=None):
 	pipeline_options.view_as(SetupOptions).save_main_session = True
 	p = beam.Pipeline(options=pipeline_options)
 
-	config = BigtableReadConfiguration('grass-clump-479', 'cpp-integration-tests', 'table-8lzvsh0u')
+	config = BigtableReadConfiguration(project_id, instance_id, table_id)
 	read_from_bigtable = ReadFromBigtable(config)
 
 	counts = (
@@ -57,5 +62,21 @@ def run(argv=None):
 	result = p.run()
 
 if __name__ == '__main__':
-  #logging.getLogger().setLevel(logging.INFO)
-  run()
+	logging.getLogger().setLevel(logging.INFO)
+	parser = argparse.ArgumentParser(
+		description=__doc__,
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument(
+		'--project',
+		help='Your Cloud Platform project ID.'
+	)
+	parser.add_argument(
+		'--instance',
+		help='ID of the Cloud Bigtable instance to connect to.'
+	)
+	parser.add_argument(
+		'--table',
+		help='Table to create and destroy.'
+	)
+    args = parser.parse_args()
+	run(args)
