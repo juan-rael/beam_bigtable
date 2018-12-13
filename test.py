@@ -45,7 +45,7 @@ def run(args):
 		'--staging_location=gs://juantest/stage',
 		'--temp_location=gs://juantest/temp',
 		'--setup_file=./beam_bigtable_package/setup.py',
-		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.17.tar.gz',
+		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.20.tar.gz',
 		'--num_workers=30'
 	]
 	parser = argparse.ArgumentParser()
