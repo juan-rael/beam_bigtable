@@ -125,9 +125,14 @@ class ReadFromBigtable(iobase.BoundedSource):
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
 		sample_row_keys = self._getTable().sample_row_keys()
 		start_key = b''
+		suma = long(desired_bundle_size)
+		last = b''
 		for sample_row_key in sample_row_keys:
-			yield iobase.SourceBundle(1, self, start_key, sample_row_key.row_key)
-			start_key = sample_row_key.row_key
+			if suma < sample_row_key.offset_bytes:
+				yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, last)
+				suma += desired_bundle_size
+				start_key = last
+			last = sample_row_key.row_key
 		if start_key != b'':
 			yield iobase.SourceBundle(1, self, start_key, b'')
 
