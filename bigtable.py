@@ -38,17 +38,28 @@ class WriteToBigtable(beam.DoFn):
 	:param app_profile_id: (Optional) The unique name of the AppProfile.
 	"""
 
+<<<<<<< HEAD
 	def __init__(self, beam_options):
+=======
+	def __init__(self, beam_options, flush_count=None, max_row_bytes=None,
+				 app_profile_id=None):
+>>>>>>> master
 		super(WriteToBigtable, self).__init__(beam_options)
 		self.beam_options = beam_options
 		self.client = None
 		self.instance = None
 		self.table = None
 		self.batcher = None
+<<<<<<< HEAD
 		self._app_profile_id = self.beam_options.app_profile_id
 		self.flush_count = self.beam_options.flush_count
 		self.max_row_bytes = self.beam_options.max_row_bytes
 		self.written = Metrics.counter(self.__class__, 'Written Row')
+=======
+		self._app_profile_id = app_profile_id
+		self.flush_count = flush_count
+		self.max_row_bytes = max_row_bytes
+>>>>>>> master
 
 	def start_bundle(self):
 		if self.beam_options.credentials is None:
@@ -190,12 +201,15 @@ class BigtableConfiguration(object):
 		self.instance_id = instance_id
 		self.table_id = table_id
 		self.credentials = None
+<<<<<<< HEAD
 	def __str__(self):
 		return json.dumps({
 			'project_id': self.project_id,
 			'instance_id': self.instance_id,
 			'table_id': self.table_id,
 		})
+=======
+>>>>>>> master
 
 class BigtableReadConfiguration(BigtableConfiguration):
 	""" Bigtable read configuration variables.
@@ -217,6 +231,7 @@ class BigtableReadConfiguration(BigtableConfiguration):
 		super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
 		self.row_set = row_set
 		self.filter_ = filter_
+<<<<<<< HEAD
 	def __str__(self):
 		import json
 		if self.filter_ is not None:
@@ -232,3 +247,5 @@ class BigtableReadConfiguration(BigtableConfiguration):
 			'row_set': row_set,
 			'filter_': filters
 		})
+=======
+>>>>>>> master

@@ -1,17 +1,15 @@
-import apache_beam as beam
 import logging
-from apache_beam.io import iobase
-from apache_beam.io.iobase import SourceBundle
-from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+import apache_beam as beam
+from builtins import range
 from google.cloud import bigtable
-
-from google.cloud.bigtable.batcher import MutationsBatcher
-from apache_beam.metrics.metric import Metrics
-from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.display import HasDisplayData
+from apache_beam.io import iobase
 from apache_beam.metrics import Metrics
-from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.io.iobase import SourceBundle
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import HasDisplayData
+from google.cloud.bigtable.batcher import MutationsBatcher
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
 class WriteToBigtable(beam.DoFn):
 	""" Creates the connector can call and add_row to the batcher using each
@@ -140,11 +138,19 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
+		logging.info( "start_position:" + range_tracker.start_position() )
+		logging.info( "stop_position:" + range_tracker.stop_position() )
+
+		if not (range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
+			if not range_tracker.try_claim(range_tracker.start_position()):
+				return
+
 		read_rows = self._getTable().read_rows(
-			start_key=range_tracker.start_position(),
-			end_key=range_tracker.stop_position(),
-			filter_=self.beam_options.filter_
-		)
+	       start_key=range_tracker.start_position(),
+	        end_key=range_tracker.stop_position(),
+	        filter_=self.beam_options.filter_
+	    )
+		
 		for row in read_rows:
 			self.read_row.inc()
 			yield row
@@ -207,9 +213,7 @@ class BigtableReadConfiguration(BigtableConfiguration):
 					each row.
 	"""
 
-	def __init__(self, project_id, instance_id, table_id, row_set=None, filter_=None, ranges_=None):
+	def __init__(self, project_id, instance_id, table_id, row_set=None, filter_=None):
 		super(BigtableReadConfiguration, self).__init__(project_id, instance_id, table_id)
 		self.row_set = row_set
 		self.filter_ = filter_
-		# Add the Ranges
-		self.ranges_ = ranges_

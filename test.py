@@ -15,6 +15,7 @@ from apache_beam.transforms.display import HasDisplayData
 from google.cloud.bigtable.batcher import MutationsBatcher
 from apache_beam.transforms.display import DisplayDataItem
 from beam_bigtable.bigtable import BigtableReadConfiguration
+#from bigtable import BigtableReadConfiguration
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
@@ -29,6 +30,7 @@ class PrintKeys(beam.DoFn):
 
 def run(args):
 	from beam_bigtable.bigtable import BigtableReadConfiguration,ReadFromBigtable
+	#from bigtable import BigtableReadConfiguration,ReadFromBigtable
 
 	project_id = args.project
 	instance_id=args.instance
@@ -39,10 +41,11 @@ def run(args):
 		'--project=grass-clump-479',
 		'--requirements_file=requirements.txt',
 		'--runner=dataflow',
+		#'--runner=direct',
 		'--staging_location=gs://juantest/stage',
 		'--temp_location=gs://juantest/temp',
 		'--setup_file=./beam_bigtable_package/setup.py',
-		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.7.tar.gz',
+		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.16.tar.gz',
 	]
 	parser = argparse.ArgumentParser()
 	known_args, pipeline_args = parser.parse_known_args(argv)
@@ -60,6 +63,7 @@ def run(args):
 		| 'print' >> beam.ParDo(PrintKeys())
 	)
 	result = p.run()
+	result.wait_until_finish()
 
 if __name__ == '__main__':
 	logging.getLogger().setLevel(logging.INFO)
@@ -78,5 +82,5 @@ if __name__ == '__main__':
 		'--table',
 		help='Table to create and destroy.'
 	)
-    args = parser.parse_args()
+	args = parser.parse_args()
 	run(args)
