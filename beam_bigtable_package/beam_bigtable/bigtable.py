@@ -114,7 +114,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 		self.beam_options = options
 		self.table = None
 		self.read_row = Metrics.counter(self.__class__, 'read')
-		
 
 	def estimate_size(self):
 		# TODO: This code get the last offset_bytes, We need to limit it to the "maximum estimated size"(2gb)
@@ -128,7 +127,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 		last = b''
 		for sample_row_key in sample_row_keys:
 			if suma < sample_row_key.offset_bytes:
-				yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, last)
+				yield iobase.SourceBundle(1, self, start_key, last)
 				suma += desired_bundle_size
 				start_key = last
 			last = sample_row_key.row_key
@@ -139,11 +138,9 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
-		logging.info( "start_position:" + range_tracker.start_position() )
-		logging.info( "stop_position:" + range_tracker.stop_position() )
-
 		if not (range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
 			if not range_tracker.try_claim(range_tracker.start_position()):
+				# there needs to be a way to cancel the request.
 				return
 
 		read_rows = self._getTable().read_rows(
