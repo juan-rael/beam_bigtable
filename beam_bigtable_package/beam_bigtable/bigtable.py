@@ -117,6 +117,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 		
 
 	def estimate_size(self):
+		# TODO: This code get the last offset_bytes, We need to limit it to the "maximum estimated size"(2gb)
 		size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
 		return size
 
