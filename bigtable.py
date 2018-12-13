@@ -119,7 +119,8 @@ class ReadFromBigtable(iobase.BoundedSource):
 	def estimate_size(self):
 		size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
 		return size
-
+	def sample_row_keys(self):
+		return self._getTable().sample_row_keys()
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
 		sample_row_keys = self._getTable().sample_row_keys()
 		start_key = b''
@@ -133,21 +134,19 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
-		logging.info( "start_position:" + range_tracker.start_position() )
-		logging.info( "stop_position:" + range_tracker.stop_position() )
-
-		if not (range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
-			if not range_tracker.try_claim(range_tracker.start_position()):
+		if not(range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
+			if not range_tracker.try_claim(range_tracker.stop_position()):
 				return
-
+		
 		read_rows = self._getTable().read_rows(
 	       start_key=range_tracker.start_position(),
 	        end_key=range_tracker.stop_position(),
 	        filter_=self.beam_options.filter_
 	    )
-		
+
 		for row in read_rows:
-			self.read_row.inc()
+			if not range_tracker.try_claim(row.row_key):
+				return
 			yield row
 
 	def display_data(self):
