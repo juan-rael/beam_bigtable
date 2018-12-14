@@ -117,6 +117,9 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 	def estimate_size(self):
 		# TODO: This code get the last offset_bytes, We need to limit it to the "maximum estimated size"(2gb)
+		# this code took the last offset, you only get one element as chunk, no matter whay size is table-query,
+		# you always going to get the full sample_row_keys as a chunk.
+		# I test it with 10million elements(40gb).
 		size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
 		return size
 
@@ -125,12 +128,13 @@ class ReadFromBigtable(iobase.BoundedSource):
 		start_key = b''
 		suma = long(0)
 		for sample_row_key in sample_row_keys:
-			if (suma+desired_bundle_size) <= sample_row_key.offset_bytes:
-				yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, sample_row_key.row_key)
+			tmp = suma + desired_bundle_size
+			if tmp <= sample_row_key.offset_bytes:
+				yield iobase.SourceBundle(1, self, start_key, sample_row_key.row_key)
 				start_key = sample_row_key.row_key
 				suma += desired_bundle_size
 		if start_key != b'':
-			yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, b'')
+			yield iobase.SourceBundle(1, self, start_key, b'')
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)

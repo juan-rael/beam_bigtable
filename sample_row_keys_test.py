@@ -7,7 +7,8 @@ def sample(table,desired_bundle_size):
 	start_key = b''
 	suma = long(0)
 	for sample_row_key in sample_row_keys:
-		if (suma+desired_bundle_size) <= sample_row_key.offset_bytes:
+		tmp = suma + desired_bundle_size
+		if tmp <= sample_row_key.offset_bytes:
 			yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, sample_row_key.row_key)
 			start_key = sample_row_key.row_key
 			suma += desired_bundle_size
@@ -30,7 +31,7 @@ table = instance.table( table_id )
 start_key = b''
 
 size = [k.offset_bytes for k in table.sample_row_keys()][-1]
-size = size / 11
+size = size / 50
 print( "Size:" + str( size ) )
 
 for i in sample(table,size):
