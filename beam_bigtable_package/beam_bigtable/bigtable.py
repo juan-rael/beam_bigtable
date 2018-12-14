@@ -159,7 +159,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 			'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id', key='projectId'),
 			'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id',key='instanceId'),
 			'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id', key='tableId'),
-			'bigtableOptions': DisplayDataItem(self.beam_options, label='Bigtable Options', key='bigtableOptions'),
+			'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
 		}
 		if self.beam_options.row_set is not None:
 			i = 0

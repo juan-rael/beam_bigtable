@@ -15,7 +15,7 @@ from apache_beam.transforms.display import HasDisplayData
 from google.cloud.bigtable.batcher import MutationsBatcher
 from apache_beam.transforms.display import DisplayDataItem
 from beam_bigtable.bigtable import BigtableReadConfiguration
-#from bigtable import BigtableReadConfiguration
+
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
@@ -30,7 +30,6 @@ class PrintKeys(beam.DoFn):
 
 def run(args):
 	from beam_bigtable.bigtable import BigtableReadConfiguration,ReadFromBigtable
-	#from bigtable import BigtableReadConfiguration,ReadFromBigtable
 
 	project_id = args.project
 	instance_id=args.instance
@@ -45,7 +44,7 @@ def run(args):
 		'--staging_location=gs://juantest/stage',
 		'--temp_location=gs://juantest/temp',
 		'--setup_file=./beam_bigtable_package/setup.py',
-		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.20.tar.gz',
+		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.23.tar.gz',
 		'--num_workers=30'
 	]
 	parser = argparse.ArgumentParser()
