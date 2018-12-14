@@ -124,7 +124,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return size
 
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
-		sample_row_keys = table.sample_row_keys()
+		sample_row_keys = self._getTable().sample_row_keys()
 		start_key = b''
 		suma = long(0)
 		for sample_row_key in sample_row_keys:
@@ -140,17 +140,17 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
+		dic = { 'filter_': self.beam_options.filter_ }
 		if not (range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
+			dic['start_key'] = range_tracker.start_position()
+			dic['end_key'] = range_tracker.stop_position()
 			if not range_tracker.try_claim(range_tracker.start_position()):
 				# there needs to be a way to cancel the request.
 				return
-
-		read_rows = self._getTable().read_rows(
-		   start_key=range_tracker.start_position(),
-			end_key=range_tracker.stop_position(),
-			filter_=self.beam_options.filter_,
-			row_set=self.beam_options.row_set
-		)
+		
+		if self.beam_options.row_set is not None:
+			dic['row_set'] = self.beam_options.row_set
+		read_rows = self._getTable().read_rows(**dic)
 		
 		for row in read_rows:
 			self.read_row.inc()
