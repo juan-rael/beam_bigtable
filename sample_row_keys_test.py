@@ -2,19 +2,19 @@ from apache_beam.io import iobase
 from google.cloud.bigtable.client import Client
 import pprint
 
-def sample(desired_bundle_size):
+def sample(table,desired_bundle_size):
 	sample_row_keys = table.sample_row_keys()
 	start_key = b''
-	suma = long(desired_bundle_size)
-	last = b''
+	suma = long(0)
 	for sample_row_key in sample_row_keys:
-		if suma < sample_row_key.offset_bytes:
-			yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, last)
+		if (suma+desired_bundle_size) <= sample_row_key.offset_bytes:
+			yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, sample_row_key.row_key)
+			start_key = sample_row_key.row_key
 			suma += desired_bundle_size
-			start_key = last
-		last = sample_row_key.row_key
 	if start_key != b'':
 		yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, b'')
+
+
 
 project_id = 'grass-clump-479'
 instance_id = 'endurance'
@@ -29,12 +29,9 @@ table = instance.table( table_id )
 
 start_key = b''
 
-size = long(1710612736)
-
+size = [k.offset_bytes for k in table.sample_row_keys()][-1]
+size = size / 11
 print( "Size:" + str( size ) )
 
-
-
-pp = pprint.PrettyPrinter(indent=4)
-for i in sample(size):
+for i in sample(table,size):
 	print( i )

@@ -121,18 +121,16 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return size
 
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
-		sample_row_keys = self._getTable().sample_row_keys()
+		sample_row_keys = table.sample_row_keys()
 		start_key = b''
-		suma = long(desired_bundle_size)
-		last = b''
+		suma = long(0)
 		for sample_row_key in sample_row_keys:
-			if suma < sample_row_key.offset_bytes:
-				yield iobase.SourceBundle(1, self, start_key, last)
+			if (suma+desired_bundle_size) <= sample_row_key.offset_bytes:
+				yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, sample_row_key.row_key)
+				start_key = sample_row_key.row_key
 				suma += desired_bundle_size
-				start_key = last
-			last = sample_row_key.row_key
 		if start_key != b'':
-			yield iobase.SourceBundle(1, self, start_key, b'')
+			yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, b'')
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
