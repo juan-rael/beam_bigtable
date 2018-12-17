@@ -120,43 +120,37 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return size
 
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
-
-		sample_row_keys = self._getTable().sample_row_keys()
-		start_key = b''
-		suma = long(0)
-
-		for sample_row_key in sample_row_keys:
-			tmp = suma + desired_bundle_size
-			if tmp <= sample_row_key.offset_bytes:
-				yield iobase.SourceBundle(weight=1,
-					source=self,
-					start_position=start_key,
-					stop_position=sample_row_key.row_key)
-				start_key = sample_row_key.row_key
-				suma += desired_bundle_size
-		if start_key != b'':
-			yield iobase.SourceBundle(weight=1,
-				source=self,
-				start_position=start_key,
-				stop_position=b'')
+		# TODO: Check where to put RowSet, because, can't set start_key and end_key with row_set.
+		if self.beam_options.row_set is not None:
+			for row_key in self.beam_options.row_set.row_keys:
+				yield iobase.SourceBundle(1,self,row_key,row_key)
+			for row_range in self.beam_options.row_set.row_ranges:
+				yield iobase.SourceBundle(1,self,row_range.start_key,row_range.end_key)
+		else:
+			sample_row_keys = self._getTable().sample_row_keys()
+			start_key = b''
+			suma = long(0)
+			for sample_row_key in sample_row_keys:
+				tmp = suma + desired_bundle_size
+				if tmp <= sample_row_key.offset_bytes:
+					yield iobase.SourceBundle(1,self,start_key,sample_row_key.row_key)
+					start_key = sample_row_key.row_key
+					suma += desired_bundle_size
+			if start_key != b'':
+				yield iobase.SourceBundle(1,self,start_key,b'')
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
-		dic = { 'filter_': self.beam_options.filter_ }		
-
-		if not (range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
-			dic['start_key'] = range_tracker.start_position()
-			dic['end_key'] = range_tracker.stop_position()
+		if not (range_tracker.start_position() == None):
 			if not range_tracker.try_claim(range_tracker.start_position()):
 				# there needs to be a way to cancel the request.
 				return
-		
-		if self.beam_options.row_set is not None:
-			dic['row_set'] = self.beam_options.row_set
-		read_rows = self._getTable().read_rows(**dic)
-		
+		read_rows = self._getTable().read_rows(start_key=range_tracker.start_position(),
+			end_key=range_tracker.stop_position(),
+			filter_=self.beam_options.filter_)
+
 		for row in read_rows:
 			self.read_row.inc()
 			yield row

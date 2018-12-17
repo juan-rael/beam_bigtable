@@ -32,7 +32,9 @@ class RReadFromBigtable(ReadFromBigtable):
 	def sample_row_keys(self):
 		sample_row_keys = self._getTable().sample_row_keys()
 		return sample_row_keys
+	
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
+		# TODO: Check where to put RowSet, because, can't set start_key and end_key with row_set.
 		if self.beam_options.row_set is not None:
 			for row_key in self.beam_options.row_set.row_keys:
 				yield iobase.SourceBundle(1,self,row_key,row_key)
