@@ -122,8 +122,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
 		# TODO: Check where to put RowSet, because, can't set start_key and end_key with row_set.
 		if self.beam_options.row_set is not None:
-			for row_key in self.beam_options.row_set.row_keys:
-				yield iobase.SourceBundle(1,self,row_key,row_key)
 			for row_range in self.beam_options.row_set.row_ranges:
 				yield iobase.SourceBundle(1,self,row_range.start_key,row_range.end_key)
 		else:
