@@ -1,1 +1,1 @@
-python test.py --project=grass-clump-479 --instance=cpp-integration-tests --table=table-8lzvsh0u
+python test.py --project=grass-clump-479 --instance=python-write --table=write-table
