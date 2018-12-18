@@ -33,31 +33,44 @@ table_id = 'perf1DFN4UF2'
 class RReadFromBigtable(ReadFromBigtable):
 	def __init__(self, beam_options):
 		super(RReadFromBigtable, self).__init__(beam_options)
+	def getTable(self):
+		return self._getTable()
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
-		# TODO: Check where to put RowSet, because, can't set start_key and end_key with row_set.
 		if self.beam_options.row_set is not None:
-			for row_range in self.beam_options.row_set.row_ranges:
-				yield iobase.SourceBundle(1,self,row_range.start_key,row_range.end_key)
+			sample_rows_ranges = self.beam_options.row_set.row_ranges
+			sample_rows_keys = self.beam_options.row_set.row_keys
+			for sample_row_key in sample_rows_keys:
+				yield iobase.SourceBundle(1,self,sample_row_key,sample_row_key)
+			for sample_row_key in sample_rows_ranges:
+				yield iobase.SourceBundle(1,self,sample_row_key.start_key,sample_row_key.end_key)
 		else:
-			sample_row_keys = self._getTable().sample_row_keys()
+			suma = 0
+			last_offset = 0
+			current_size = 0
 			start_key = b''
-			suma = long(0)
+			sample_row_keys = self._getTable().sample_row_keys()
 			for sample_row_key in sample_row_keys:
-				tmp = suma + desired_bundle_size
-				if tmp <= sample_row_key.offset_bytes:
-					yield iobase.SourceBundle(1,self,start_key,sample_row_key.row_key)
+				current_size = sample_row_key.offset_bytes-last_offset
+				if suma >= desired_bundle_size:
+					yield iobase.SourceBundle(suma,self,start_key,sample_row_key.row_key)
 					start_key = sample_row_key.row_key
-					suma += desired_bundle_size
-			if start_key != b'':
-				yield iobase.SourceBundle(1,self,start_key,b'')
 
+					suma = 0
+				suma += current_size
+				last_offset = sample_row_key.offset_bytes
+			
 row_set = RowSet()
-row_set.add_row_range(RowRange(start_key=b'127', end_key=b'384',start_inclusive=True,end_inclusive=True))
-row_set.add_row_range(RowRange(start_key=b'646', end_key=b'701',start_inclusive=True,end_inclusive=True))
+row_set.add_row_range(RowRange(start_key=b'user163', end_key=b'user76',start_inclusive=True,end_inclusive=True))
+row_set.add_row_range(RowRange(start_key=b'user887', end_key=b'user945',start_inclusive=True,end_inclusive=True))
+row_set.add_row_key('817')
 
-config = BigtableReadConfiguration(project_id, instance_id, table_id, row_set=row_set)
+#config = BigtableReadConfiguration(project_id, instance_id, table_id, row_set=row_set)
+config = BigtableReadConfiguration(project_id, instance_id, table_id)
 read_from_bigtable = RReadFromBigtable(config)
 
-size = read_from_bigtable.estimate_size()
+size = long(402653184)
+#size = long(805306368)
+#size = long(1610612736)
+#size = long(2415919104)
 for i in read_from_bigtable.split(size):
 	print( i )

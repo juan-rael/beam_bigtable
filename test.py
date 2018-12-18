@@ -49,7 +49,7 @@ def run(args):
 		'--staging_location=gs://juantest/stage',
 		'--temp_location=gs://juantest/temp',
 		'--setup_file=./beam_bigtable_package/setup.py',
-		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.38.tar.gz'
+		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.43.tar.gz'
 	]
 	if job_name is not None:
 		argv.append('--job_name='+job_name)
@@ -61,10 +61,11 @@ def run(args):
 	p = beam.Pipeline(options=pipeline_options)
 
 	row_set = RowSet()
-	row_set.add_row_range(RowRange(start_key=b'127', end_key=b'384',start_inclusive=True,end_inclusive=True))
-	row_set.add_row_range(RowRange(start_key=b'646', end_key=b'701',start_inclusive=True,end_inclusive=True))
+	row_set.add_row_range(RowRange(start_key=b'user354', end_key=b'user384',start_inclusive=True,end_inclusive=True))
+	row_set.add_row_range(RowRange(start_key=b'user646', end_key=b'user665',start_inclusive=True,end_inclusive=True))
 
 	config = BigtableReadConfiguration(project_id, instance_id, table_id, row_set=row_set)
+	#config = BigtableReadConfiguration(project_id, instance_id, table_id)
 	read_from_bigtable = ReadFromBigtable(config)
 
 	counts = (
