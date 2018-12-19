@@ -1,1 +1,1 @@
-python test.py --project=grass-clump-479 --instance=python-write --table=write-table
+python test.py --project=grass-clump-479 --instance=python-write --table=write-table --requirements_file=requirements.txt --runner=dataflow --staging_location=gs://juantest/stage --temp_location=gs://juantest/temp --setup_file=./beam_bigtable_package/setup.py --extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.43.tar.gz

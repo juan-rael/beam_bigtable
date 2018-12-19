@@ -10,6 +10,13 @@ from google.cloud.bigtable.batcher import MutationsBatcher
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
+class ReadBigtableOptions(PipelineOptions):
+	@classmethod
+	def _add_argparse_args(cls, parser):
+		super(ReadBigtableOptions, cls)._add_argparse_args(parser)
+		parser.add_argument('--instance', required=True )
+		parser.add_argument('--table', required=True )
+
 class WriteToBigtable(beam.DoFn):
 	""" Creates the connector can call and add_row to the batcher using each
 	row in beam pipe line

@@ -20,7 +20,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
-from beam_bigtable.bigtable import ReadFromBigtable
+from beam_bigtable.bigtable import ReadFromBigtable,ReadBigtableOptions
 
 from google.cloud.bigtable.row_set import RowSet
 from google.cloud.bigtable.row_set import RowRange
@@ -36,36 +36,36 @@ def run(args):
 	from beam_bigtable.bigtable import BigtableReadConfiguration
 
 	project_id = args.project
-	instance_id=args.instance
+	instance_id = args.instance
 	table_id = args.table
-	job_name = args.job_name
 
-	#argv_input = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 	argv = [
 		'--project=grass-clump-479',
 		'--requirements_file=requirements.txt',
 		'--runner=dataflow',
-		#'--runner=direct',
 		'--staging_location=gs://juantest/stage',
 		'--temp_location=gs://juantest/temp',
 		'--setup_file=./beam_bigtable_package/setup.py',
-		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.43.tar.gz'
+		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.43.tar.gz',
+		'--instance=' + instance_id,
+		'--table=' + table_id,
+		'--template_location=gs://juantest/templates/read_bigtable'
 	]
-	if job_name is not None:
-		argv.append('--job_name='+job_name)
+
 	parser = argparse.ArgumentParser()
 	known_args, pipeline_args = parser.parse_known_args(argv)
 
 	pipeline_options = PipelineOptions(pipeline_args)
-	pipeline_options.view_as(SetupOptions).save_main_session = True
+	pipeline_options.view_as(ReadBigtableOptions)
+
 	p = beam.Pipeline(options=pipeline_options)
 
 	row_set = RowSet()
 	row_set.add_row_range(RowRange(start_key=b'user354', end_key=b'user384',start_inclusive=True,end_inclusive=True))
 	row_set.add_row_range(RowRange(start_key=b'user646', end_key=b'user665',start_inclusive=True,end_inclusive=True))
 
-	config = BigtableReadConfiguration(project_id, instance_id, table_id, row_set=row_set)
-	#config = BigtableReadConfiguration(project_id, instance_id, table_id)
+	#config = BigtableReadConfiguration(project_id, instance_id, table_id, row_set=row_set)
+	config = BigtableReadConfiguration(project_id, instance_id, table_id)
 	read_from_bigtable = ReadFromBigtable(config)
 
 	counts = (
@@ -93,6 +93,38 @@ if __name__ == '__main__':
 		'--table',
 		help='Table to create and destroy.'
 	)
+
+	parser.add_argument(
+		'--requirements_file',
+		help=''
+	)
+	
+	parser.add_argument(
+		'--runner',
+		help=''
+	)
+
+	parser.add_argument(
+		'--staging_location',
+		help=''
+	)
+
+	parser.add_argument(
+		'--temp_location',
+		help=''
+	)
+
+	parser.add_argument(
+		'--setup_file',
+		help=''
+	)
+
+	parser.add_argument(
+		'--extra_package',
+		help=''
+	)
+
+
 	parser.add_argument(
 		'--job_name',
 		help='Job name to create.'
