@@ -39,21 +39,8 @@ def run(args):
 	instance_id = args.instance
 	table_id = args.table
 
-	argv = [
-		'--project=grass-clump-479',
-		'--requirements_file=requirements.txt',
-		'--runner=dataflow',
-		'--staging_location=gs://juantest/stage',
-		'--temp_location=gs://juantest/temp',
-		'--setup_file=./beam_bigtable_package/setup.py',
-		'--extra_package=./beam_bigtable_package/dist/beam_bigtable-0.2.43.tar.gz',
-		'--instance=' + instance_id,
-		'--table=' + table_id,
-		'--template_location=gs://juantest/templates/read_bigtable'
-	]
-
 	parser = argparse.ArgumentParser()
-	known_args, pipeline_args = parser.parse_known_args(argv)
+	(known_args, pipeline_args) = parser.parse_known_args(args)
 
 	pipeline_options = PipelineOptions(pipeline_args)
 	pipeline_options.view_as(ReadBigtableOptions)
@@ -89,6 +76,7 @@ if __name__ == '__main__':
 		'--instance',
 		help='ID of the Cloud Bigtable instance to connect to.'
 	)
+
 	parser.add_argument(
 		'--table',
 		help='Table to create and destroy.'

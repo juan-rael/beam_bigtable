@@ -8,9 +8,14 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import HasDisplayData
 from google.cloud.bigtable.batcher import MutationsBatcher
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
+
 class ReadBigtableOptions(PipelineOptions):
+	""" Create the Pipeline Options to set ReadBigtable/WriteBigtable.
+	You can create and use this class in the Template, with a certainly steps.
+	"""
 	@classmethod
 	def _add_argparse_args(cls, parser):
 		super(ReadBigtableOptions, cls)._add_argparse_args(parser)
@@ -89,7 +94,6 @@ class WriteToBigtable(beam.DoFn):
 			'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
 		}
 
-	
 class ReadFromBigtable(iobase.BoundedSource):
 	""" Bigtable apache beam read source
 	:type split_keys: dict
@@ -130,6 +134,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 		if self.beam_options.row_set is not None:
 			sample_rows_ranges = self.beam_options.row_set.row_ranges
 			sample_rows_keys = self.beam_options.row_set.row_keys
+			# Need to get the RowRange size, to get if we need to split it.n
 			for sample_row_key in sample_rows_keys:
 				yield iobase.SourceBundle(1,self,sample_row_key,sample_row_key)
 			for sample_row_key in sample_rows_ranges:
@@ -196,7 +201,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 				ret['rowFilter{}'.format(i)] = DisplayDataItem(str(value.to_pb()), label='Bigtable Row Filter {}'.format(i), key='rowFilter{}'.format(i))
 		return ret
 
-
 class BigtableConfiguration(object):
 	""" Bigtable configuration variables.
 
@@ -251,6 +255,7 @@ class BigtableWriteConfiguration(BigtableConfiguration):
 			'instance_id': self.instance_id,
 			'table_id': self.table_id,
 		})
+
 class BigtableReadConfiguration(BigtableConfiguration):
 	""" Bigtable read configuration variables.
 
