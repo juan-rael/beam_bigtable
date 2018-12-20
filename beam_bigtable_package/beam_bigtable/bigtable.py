@@ -1,5 +1,4 @@
 import logging
-import json
 import apache_beam as beam
 from google.cloud import bigtable
 from apache_beam.io import iobase
@@ -9,7 +8,19 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import HasDisplayData
 from google.cloud.bigtable.batcher import MutationsBatcher
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
+
+
+class ReadBigtableOptions(PipelineOptions):
+	""" Create the Pipeline Options to set ReadBigtable/WriteBigtable.
+	You can create and use this class in the Template, with a certainly steps.
+	"""
+	@classmethod
+	def _add_argparse_args(cls, parser):
+		super(ReadBigtableOptions, cls)._add_argparse_args(parser)
+		parser.add_argument('--instance', required=True )
+		parser.add_argument('--table', required=True )
 
 class WriteToBigtable(beam.DoFn):
 	""" Creates the connector can call and add_row to the batcher using each
@@ -80,9 +91,9 @@ class WriteToBigtable(beam.DoFn):
 			'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id'),
 			'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id'),
 			'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id'),
+			'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
 		}
 
-	
 class ReadFromBigtable(iobase.BoundedSource):
 	""" Bigtable apache beam read source
 	:type split_keys: dict
@@ -114,43 +125,58 @@ class ReadFromBigtable(iobase.BoundedSource):
 		self.beam_options = options
 		self.table = None
 		self.read_row = Metrics.counter(self.__class__, 'read')
-		
 
 	def estimate_size(self):
 		size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
 		return size
 
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
-		sample_row_keys = self._getTable().sample_row_keys()
-		start_key = b''
-		suma = long(desired_bundle_size)
-		last = b''
-		for sample_row_key in sample_row_keys:
-			if suma < sample_row_key.offset_bytes:
-				yield iobase.SourceBundle(1, iobase.SourceBundle, start_key, last)
-				suma += desired_bundle_size
-				start_key = last
-			last = sample_row_key.row_key
-		if start_key != b'':
-			yield iobase.SourceBundle(1, self, start_key, b'')
+		if self.beam_options.row_set is not None:
+			sample_rows_ranges = self.beam_options.row_set.row_ranges
+			sample_rows_keys = self.beam_options.row_set.row_keys
+			# Need to get the RowRange size, to get if we need to split it.n
+			for sample_row_key in sample_rows_keys:
+				yield iobase.SourceBundle(1,self,sample_row_key,sample_row_key)
+			for sample_row_key in sample_rows_ranges:
+				yield iobase.SourceBundle(1,self,sample_row_key.start_key,sample_row_key.end_key)
+		else:
+			suma = 0
+			last_offset = 0
+			current_size = 0
+
+			start_key = b''
+			end_key = b''
+			sample_row_keys = self._getTable().sample_row_keys()
+			for sample_row_key in sample_row_keys:
+				current_size = sample_row_key.offset_bytes-last_offset
+				if suma >= desired_bundle_size:
+					end_key = sample_row_key.row_key
+					yield iobase.SourceBundle(suma,self,start_key,end_key)
+					start_key = sample_row_key.row_key
+
+					suma = 0
+				suma += current_size
+				last_offset = sample_row_key.offset_bytes
+
+	def check_range_adjancency(self, ranges):
+		index = 0
+		if len(ranges) < 2:
+			return True
+		last_end_key = ranges.end_key
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
-		logging.info( "start_position:" + range_tracker.start_position() )
-		logging.info( "stop_position:" + range_tracker.stop_position() )
-
-		if not (range_tracker.start_position() == '' and range_tracker.stop_position() == ''):
+		logging.info('Read RangeTracker:' + str( range_tracker.start_position() ) + "|" + str( range_tracker.stop_position() ) )
+		if not (range_tracker.start_position() == None):
 			if not range_tracker.try_claim(range_tracker.start_position()):
+				# there needs to be a way to cancel the request.
 				return
-
-		read_rows = self._getTable().read_rows(
-		   start_key=range_tracker.start_position(),
+		read_rows = self._getTable().read_rows(start_key=range_tracker.start_position(),
 			end_key=range_tracker.stop_position(),
-			filter_=self.beam_options.filter_
-		)
-		
+			filter_=self.beam_options.filter_)
+
 		for row in read_rows:
 			self.read_row.inc()
 			yield row
@@ -175,7 +201,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 				ret['rowFilter{}'.format(i)] = DisplayDataItem(str(value.to_pb()), label='Bigtable Row Filter {}'.format(i), key='rowFilter{}'.format(i))
 		return ret
 
-
 class BigtableConfiguration(object):
 	""" Bigtable configuration variables.
 
@@ -196,6 +221,7 @@ class BigtableConfiguration(object):
 		self.instance_id = instance_id
 		self.table_id = table_id
 		self.credentials = None
+
 class BigtableWriteConfiguration(BigtableConfiguration):
 	"""
 	:type flush_count: int
@@ -215,7 +241,7 @@ class BigtableWriteConfiguration(BigtableConfiguration):
 	:param app_profile_id: (Optional) The unique name of the AppProfile.
 	"""
 
-	def __init__(self, project_id, instance_id, table, flush_count=None, max_row_bytes=None,
+	def __init__(self, project_id, instance_id, table_id, flush_count=None, max_row_bytes=None,
 				 app_profile_id=None):
 		super(BigtableWriteConfiguration, self).__init__(project_id, instance_id, table_id)
 		self.flush_count = flush_count
@@ -223,11 +249,13 @@ class BigtableWriteConfiguration(BigtableConfiguration):
 		self.app_profile_id = app_profile_id
 
 	def __str__(self):
+		import json
 		return json.dumps({
 			'project_id': self.project_id,
 			'instance_id': self.instance_id,
 			'table_id': self.table_id,
 		})
+
 class BigtableReadConfiguration(BigtableConfiguration):
 	""" Bigtable read configuration variables.
 
@@ -249,6 +277,9 @@ class BigtableReadConfiguration(BigtableConfiguration):
 		self.row_set = row_set
 		self.filter_ = filter_
 	def __str__(self):
+		import json
+		row_set = []
+		filters = ""
 		if self.filter_ is not None:
 			filters = str(self.filter_.to_pb())
 		if self.row_set is not None:
