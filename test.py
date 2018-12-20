@@ -38,9 +38,9 @@ def run(args):
 	project_id = args.project
 	instance_id = args.instance
 	table_id = args.table
-
-	parser = argparse.ArgumentParser()
-	(known_args, pipeline_args) = parser.parse_known_args(args)
+	
+	parser = argparse.ArgumentParser(args)
+	(known_args, pipeline_args) = parser.parse_known_args()
 
 	pipeline_options = PipelineOptions(pipeline_args)
 	pipeline_options.view_as(ReadBigtableOptions)
