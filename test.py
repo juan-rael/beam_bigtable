@@ -38,7 +38,7 @@ def run(args):
 	project_id = args.project
 	instance_id = args.instance
 	table_id = args.table
-	
+
 	parser = argparse.ArgumentParser(args)
 	(known_args, pipeline_args) = parser.parse_known_args()
 

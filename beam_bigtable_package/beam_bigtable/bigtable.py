@@ -123,7 +123,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 	def __setstate__(self, options):
 		self.beam_options = options
-		self.table = None
+		self.table = None`
 		self.read_row = Metrics.counter(self.__class__, 'read')
 
 	def estimate_size(self):
@@ -131,14 +131,12 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return size
 
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
+		sample_row_keys = self._getTable().sample_row_keys()
+
 		if self.beam_options.row_set is not None:
-			sample_rows_ranges = self.beam_options.row_set.row_ranges
-			sample_rows_keys = self.beam_options.row_set.row_keys
-			# Need to get the RowRange size, to get if we need to split it.n
-			for sample_row_key in sample_rows_keys:
-				yield iobase.SourceBundle(1,self,sample_row_key,sample_row_key)
-			for sample_row_key in sample_rows_ranges:
-				yield iobase.SourceBundle(1,self,sample_row_key.start_key,sample_row_key.end_key)
+			for sample_row_key in self.beam_options.row_set.row_ranges:
+				self.split_range_based_on_samples(desired_bundle_size, sample_row_keys, sample_row_key )
+				#yield iobase.SourceBundle(1,self,sample_row_key.start_key,sample_row_key.end_key)
 		else:
 			suma = 0
 			last_offset = 0
@@ -146,17 +144,26 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 			start_key = b''
 			end_key = b''
-			sample_row_keys = self._getTable().sample_row_keys()
+			
 			for sample_row_key in sample_row_keys:
-				current_size = sample_row_key.offset_bytes-last_offset
-				if suma >= desired_bundle_size:
-					end_key = sample_row_key.row_key
-					yield iobase.SourceBundle(suma,self,start_key,end_key)
-					start_key = sample_row_key.row_key
+				current_size = sample_row_key.offset_bytes-last_offset	
+				else:
+					if suma >= desired_bundle_size:
+						end_key = sample_row_key.row_key
+						if current_size > desired_bundle_size:
+							for i in self.fraction_source(start_key, end_key, current_size, desired_bundle_size):
+								yield iobase.SourceBundle(1, self, )
+						else:
+							yield iobase.SourceBundle(suma,self,start_key,end_key)
+						start_key = sample_row_key.row_key
 
-					suma = 0
+						suma = 0
 				suma += current_size
 				last_offset = sample_row_key.offset_bytes
+	def fraction_source(self):
+		range_tracker = LexicographicKeyRangeTracker(start_key, end_key)
+		split_count = desired_bundle_size/current_size
+		return range_tracker.fraction_to_position(split_count):
 
 	def check_range_adjancency(self, ranges):
 		index = 0
@@ -168,7 +175,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
 
 	def read(self, range_tracker):
-		logging.info('Read RangeTracker:' + str( range_tracker.start_position() ) + "|" + str( range_tracker.stop_position() ) )
 		if not (range_tracker.start_position() == None):
 			if not range_tracker.try_claim(range_tracker.start_position()):
 				# there needs to be a way to cancel the request.
@@ -186,7 +192,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 			'projectId': DisplayDataItem(self.beam_options.project_id, label='Bigtable Project Id', key='projectId'),
 			'instanceId': DisplayDataItem(self.beam_options.instance_id, label='Bigtable Instance Id',key='instanceId'),
 			'tableId': DisplayDataItem(self.beam_options.table_id, label='Bigtable Table Id', key='tableId'),
-			'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
+			#'bigtableOptions': DisplayDataItem(str(self.beam_options), label='Bigtable Options', key='bigtableOptions'),
 		}
 		if self.beam_options.row_set is not None:
 			i = 0
