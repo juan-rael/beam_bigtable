@@ -160,16 +160,22 @@ class ReadFromBigtable(iobase.BoundedSource):
 						suma = 0
 				suma += current_size
 				last_offset = sample_row_key.offset_bytes
-	def fraction_source(self):
-		range_tracker = LexicographicKeyRangeTracker(start_key, end_key)
-		split_count = desired_bundle_size/current_size
-		return range_tracker.fraction_to_position(split_count):
+	
+	def split_key_range_into_bundle_sized_sub_ranges(self, sample_size_bytes, desired_bundle_size, ranges):
+		last_key = copy.deepcopy(ranges.stop_position())
+		s = ranges.start_position()
+		e = ranges.stop_position()
 
-	def check_range_adjancency(self, ranges):
-		index = 0
-		if len(ranges) < 2:
-			return True
-		last_end_key = ranges.end_key
+		split_ = float(desired_bundle_size) / float(sample_size_bytes)
+		split_count = int( math.ceil( sample_size_bytes / desired_bundle_size ) )
+
+		for i in range(split_count):
+			estimate_position = ((i+1) * split_)
+			position = LexicographicKeyRangeTracker.fraction_to_position(estimate_position, ranges.start_position(), ranges.stop_position())
+			e = position
+			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, e)
+			s = position
+		yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)
