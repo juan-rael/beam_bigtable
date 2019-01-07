@@ -1,3 +1,5 @@
+import copy
+import math
 import logging
 import apache_beam as beam
 from google.cloud import bigtable
@@ -60,7 +62,7 @@ class WriteToBigtable(beam.DoFn):
 		self.flush_count = self.beam_options.flush_count
 		self.max_row_bytes = self.beam_options.max_row_bytes
 		self.written = Metrics.counter(self.__class__, 'Written Row')
-
+		print( "Hola Write ")
 	def start_bundle(self):
 		if self.beam_options.credentials is None:
 			self.client = bigtable.Client(project=self.beam_options.project_id,
@@ -123,7 +125,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 	def __setstate__(self, options):
 		self.beam_options = options
-		self.table = None`
+		self.table = None
 		self.read_row = Metrics.counter(self.__class__, 'read')
 
 	def estimate_size(self):
@@ -135,8 +137,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 		if self.beam_options.row_set is not None:
 			for sample_row_key in self.beam_options.row_set.row_ranges:
-				self.split_range_based_on_samples(desired_bundle_size, sample_row_keys, sample_row_key )
-				#yield iobase.SourceBundle(1,self,sample_row_key.start_key,sample_row_key.end_key)
+				yield self.range_split_fraction(1, desired_bundle_size, sample_row_key.start_key, sample_row_key.end_key)
 		else:
 			suma = 0
 			last_offset = 0
@@ -146,20 +147,19 @@ class ReadFromBigtable(iobase.BoundedSource):
 			end_key = b''
 			
 			for sample_row_key in sample_row_keys:
-				current_size = sample_row_key.offset_bytes-last_offset	
-				else:
-					if suma >= desired_bundle_size:
-						end_key = sample_row_key.row_key
-						if current_size > desired_bundle_size:
-							for i in self.fraction_source(start_key, end_key, current_size, desired_bundle_size):
-								yield iobase.SourceBundle(1, self, )
-						else:
-							yield iobase.SourceBundle(suma,self,start_key,end_key)
-						start_key = sample_row_key.row_key
+				current_size = sample_row_key.offset_bytes-last_offset
+				if suma >= desired_bundle_size:
+					end_key = sample_row_key.row_key
+					yield self.range_split_fraction(suma, desired_bundle_size, start_key, end_key)
+					start_key = sample_row_key.row_key
 
-						suma = 0
+					suma = 0
 				suma += current_size
 				last_offset = sample_row_key.offset_bytes
+	
+	def range_split_fraction(self, current_size, desired_bundle_size, start_key, end_key):
+		range_tracker = LexicographicKeyRangeTracker(start_key, end_key)
+		return self.split_key_range_into_bundle_sized_sub_ranges(current_size, desired_bundle_size, range_tracker)
 	
 	def split_key_range_into_bundle_sized_sub_ranges(self, sample_size_bytes, desired_bundle_size, ranges):
 		last_key = copy.deepcopy(ranges.stop_position())
