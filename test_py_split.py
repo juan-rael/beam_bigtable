@@ -55,38 +55,29 @@ class RowRanges(RowRange):
 	def ends_after_key(self, key):
 		return self.end_key == b'' or compare(key,self.end_key)
 	def contains_key(self, key):
-		return compare(key, self.start_key) and self.ends_after_key(key)
+		return self.start_key <= key and self.end_key >= key
 class RReadFromBigtable(ReadFromBigtable):
+	def getTable(self):
+		return self._getTable()
 	def get_sample_row(self):
 		return self._getTable().sample_row_keys()
-	def range_size(self):
-		pass
+	
 	def split_range_size(self, desired_bundle_size_bytes, sample_row_keys, range_):
-		last_end_key = b''
-		last_offset = 0
-		splits = []
-		for response in sample_row_keys:
-			response_end_key = response.row_key
-			response_offset = response.offset_bytes
-
-			split_start_key = last_end_key
-			if split_start_key < range_.start_key:
-				split_start_key = range_.start_key
+		prev = None
+		start, end, size = None, None, 0
+		range_all_split = []
+		l = 0
+		for sample_row in sample_row_keys:
+			current = sample_row.offset_bytes - l
+			if sample_row.row_key == b'':
+				continue
 			
-			split_end_key = response_end_key
-			if not range_.contains_key(split_end_key):
-				split_end_key = range_.end_key
-			
-			sample_size_bytes = response_offset - last_offset
-			sub_splits = self.range_split_fraction(sample_size_bytes,
-							   desired_bundle_size_bytes,
-							   split_start_key,
-							   split_end_key)
-			splits.extend(sub_splits)
-			last_end_key = response_end_key
-			last_offset = response_offset
-		
-		return splits
+			if range_.contains_key(sample_row.row_key):
+				if start is not None:
+					end = sample_row.row_key
+					yield {"start": start, "end": end, "size": current}
+				start = sample_row.row_key
+			l = sample_row.offset_bytes
 project_id = 'grass-clump-479'
 instance_id = 'endurance'
 table_id = 'perf1DFN4UF2'
@@ -95,7 +86,8 @@ config = BigtableReadConfiguration(project_id, instance_id, table_id)
 read_from_bigtable = RReadFromBigtable(config)
 size = read_from_bigtable.estimate_size()
 
-ranges = RowRanges(start_key=b'user0038', end_key=b'user0165573')
+#ranges = RowRanges(start_key=b'user0038', end_key=b'user1269970')
+ranges = RowRanges(start_key=b'user0038', end_key=b'user2')
 desired_bundle_size = 402653184
 sample_row_keys = read_from_bigtable.get_sample_row()
 split_size = read_from_bigtable.split_range_size(desired_bundle_size, sample_row_keys, ranges)

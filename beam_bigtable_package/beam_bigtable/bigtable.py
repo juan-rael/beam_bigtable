@@ -137,8 +137,8 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 		if self.beam_options.row_set is not None:
 			for sample_row_key in self.beam_options.row_set.row_ranges:
-				for split_size in self.split_range_size(desired_bundle_size, sample_row_keys, sample_row_key):
-					yield split_size
+
+				return self.split_range_size(desired_bundle_size, sample_row_keys, sample_row_key)
 		else:
 			suma = 0
 			last_offset = 0
@@ -159,24 +159,21 @@ class ReadFromBigtable(iobase.BoundedSource):
 				last_offset = sample_row_key.offset_bytes
 	
 	def split_range_size(self, desired_bundle_size_bytes, sample_row_keys, range_):
-		last_end_key = b''
-		last_offset = 0
-		splits = []
-		for response in sample_row_keys:
-			response_end_key = response.row_key
-			response_offset = response.offset_bytes
-
-			split_start_key = last_end_key
-			if split_start_key < range_.start_key:
-				split_start_key = range_.start_key
+		prev = None
+		start, end, size = None, None, 0
+		range_all_split = []
+		l = 0
+		for sample_row in sample_row_keys:
+			current = sample_row.offset_bytes - l
+			if sample_row.row_key == b'':
+				continue
 			
-			split_end_key = response_end_key
-			if not range_.contains_key(split_end_key):
-				split_end_key = range_.end_key
-			
-			sample_size_bytes = response_offset - last_offset
-			sub_splits = self.range_split_fraction(sample_size_bytes,
-							   desired_bundle_size_bytes,
+			if range_.start_key <= sample_row.row_key and range_.end_key >= sample_row.row_key:
+				if start is not None:
+					end = sample_row.row_key
+					yield self.range_split_fraction(current, desired_bundle_size_bytes, start, end)
+				start = sample_row.row_key
+			l = sample_row.offset_bytes desired_bundle_size_bytes,
 							   split_start_key,
 							   split_end_key)
 			splits.extend(sub_splits)
