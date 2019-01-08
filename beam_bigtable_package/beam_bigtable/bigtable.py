@@ -62,7 +62,7 @@ class WriteToBigtable(beam.DoFn):
 		self.flush_count = self.beam_options.flush_count
 		self.max_row_bytes = self.beam_options.max_row_bytes
 		self.written = Metrics.counter(self.__class__, 'Written Row')
-		print( "Hola Write ")
+
 	def start_bundle(self):
 		if self.beam_options.credentials is None:
 			self.client = bigtable.Client(project=self.beam_options.project_id,
@@ -131,13 +131,17 @@ class ReadFromBigtable(iobase.BoundedSource):
 	def estimate_size(self):
 		size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
 		return size
-
+	
+	def get_sample_row_keys(self):
+		return self._getTable().sample_row_keys()
+	
 	def split(self, desired_bundle_size, start_position=None, stop_position=None):
-		sample_row_keys = self._getTable().sample_row_keys()
+		sample_row_keys = self.get_sample_row_keys()
 
 		if self.beam_options.row_set is not None:
 			for sample_row_key in self.beam_options.row_set.row_ranges:
-				return self.split_range_size(desired_bundle_size, sample_row_keys, sample_row_key)
+				for row_split in self.split_range_size(desired_bundle_size, sample_row_keys, sample_row_key):
+					yield row_split
 		else:
 			suma = 0
 			last_offset = 0
@@ -145,7 +149,7 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 			start_key = b''
 			end_key = b''
-			
+
 			for sample_row_key in sample_row_keys:
 				current_size = sample_row_key.offset_bytes-last_offset
 				if suma >= desired_bundle_size:
@@ -156,28 +160,29 @@ class ReadFromBigtable(iobase.BoundedSource):
 					suma = 0
 				suma += current_size
 				last_offset = sample_row_key.offset_bytes
-	
+
 	def split_range_size(self, desired_bundle_size_bytes, sample_row_keys, range_):
-		prev = None
-		start, end, size = None, None, 0
-		range_all_split = []
+		start, end = None, None
 		l = 0
 		for sample_row in sample_row_keys:
 			current = sample_row.offset_bytes - l
 			if sample_row.row_key == b'':
 				continue
-			
-			if range_.contains_key(sample_row.row_key):
+
+			if range_.start_key <= sample_row.row_key and range_.end_key >= sample_row.row_key:
 				if start is not None:
 					end = sample_row.row_key
-					yield self.range_split_fraction(current, desired_bundle_size_bytes, start, end)
+					range_tracker = LexicographicKeyRangeTracker(start, end)
+
+					for split_key_range in self.split_key_range_into_bundle_sized_sub_ranges(current, desired_bundle_size_bytes, range_tracker):
+						yield split_key_range
 				start = sample_row.row_key
 			l = sample_row.offset_bytes
 
 	def range_split_fraction(self, current_size, desired_bundle_size, start_key, end_key):
 		range_tracker = LexicographicKeyRangeTracker(start_key, end_key)
 		return self.split_key_range_into_bundle_sized_sub_ranges(current_size, desired_bundle_size, range_tracker)
-	
+
 	def split_key_range_into_bundle_sized_sub_ranges(self, sample_size_bytes, desired_bundle_size, ranges):
 		last_key = copy.deepcopy(ranges.stop_position())
 		s = ranges.start_position()
@@ -192,7 +197,8 @@ class ReadFromBigtable(iobase.BoundedSource):
 			e = position
 			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, e)
 			s = position
-		yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
+		if not s == last_key:
+			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
 
 	def get_range_tracker(self, start_position, stop_position):
 		return LexicographicKeyRangeTracker(start_position, stop_position)

@@ -38,59 +38,35 @@ project_id = 'grass-clump-479'
 instance_id = 'endurance'
 table_id = 'perf1DFN4UF2'
 
-def compare(a, b):
-    return ((a > b) - (a < b))
-
-def frange(start, stop, step):
-	i = start
-	while i < stop:
-		yield i
-		i += step
-
-def checkArgument(condition, message, *args):
-	pass
-class RowRanges(RowRange):
-	def overlaps(self, other):
-		return self.ends_after_key(other.start_key) and other.ends_after_key(self.start_key)
-	def ends_after_key(self, key):
-		return self.end_key == b'' or compare(key,self.end_key)
-	def contains_key(self, key):
-		return self.start_key <= key and self.end_key >= key
 class RReadFromBigtable(ReadFromBigtable):
-	def getTable(self):
-		return self._getTable()
-	def get_sample_row(self):
-		return self._getTable().sample_row_keys()
+	pass
+
 	
-	def split_range_size(self, desired_bundle_size_bytes, sample_row_keys, range_):
-		prev = None
-		start, end, size = None, None, 0
-		range_all_split = []
-		l = 0
-		for sample_row in sample_row_keys:
-			current = sample_row.offset_bytes - l
-			if sample_row.row_key == b'':
-				continue
-			
-			if range_.contains_key(sample_row.row_key):
-				if start is not None:
-					end = sample_row.row_key
-					yield {"start": start, "end": end, "size": current}
-				start = sample_row.row_key
-			l = sample_row.offset_bytes
-project_id = 'grass-clump-479'
-instance_id = 'endurance'
-table_id = 'perf1DFN4UF2'
+
 
 config = BigtableReadConfiguration(project_id, instance_id, table_id)
 read_from_bigtable = RReadFromBigtable(config)
-size = read_from_bigtable.estimate_size()
+#size = read_from_bigtable.estimate_size()
 
-#ranges = RowRanges(start_key=b'user0038', end_key=b'user1269970')
-ranges = RowRanges(start_key=b'user0038', end_key=b'user2')
-desired_bundle_size = 402653184
-sample_row_keys = read_from_bigtable.get_sample_row()
-split_size = read_from_bigtable.split_range_size(desired_bundle_size, sample_row_keys, ranges)
+#ranges = RowRange(start_key=b'user0038', end_key=b'user1269970')
+#ranges = RowRange(start_key=b'user0038', end_key=b'user2')
+#desired_bundle_size = 402653184
+#sample_row_keys = read_from_bigtable.get_sample_row_keys()
 
-for i in split_size:
-	print( i )
+#split_size = read_from_bigtable.split_range_size(desired_bundle_size, sample_row_keys, ranges)
+array = [
+	
+	LexicographicKeyRangeTracker(b'user0038', b'user0163'),
+	LexicographicKeyRangeTracker(b'user0163', b'user04'),
+	LexicographicKeyRangeTracker(b'user04', b'user054'),
+	LexicographicKeyRangeTracker(b'user054', b'user083'),
+	LexicographicKeyRangeTracker(b'user083', b'user105'),
+	LexicographicKeyRangeTracker(b'user105', b'user127'),
+	LexicographicKeyRangeTracker(b'user127', b'user162'),
+	LexicographicKeyRangeTracker(b'user162', b'user183'),
+	LexicographicKeyRangeTracker(b'user183', b'user2'),
+]
+for a in array:
+	for sub_ranges in read_from_bigtable.split_key_range_into_bundle_sized_sub_ranges(805306368, 201326592, a):
+		print( sub_ranges)
+	print( "++" )
