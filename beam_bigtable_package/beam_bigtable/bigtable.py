@@ -137,7 +137,6 @@ class ReadFromBigtable(iobase.BoundedSource):
 
 		if self.beam_options.row_set is not None:
 			for sample_row_key in self.beam_options.row_set.row_ranges:
-
 				return self.split_range_size(desired_bundle_size, sample_row_keys, sample_row_key)
 		else:
 			suma = 0
@@ -168,19 +167,12 @@ class ReadFromBigtable(iobase.BoundedSource):
 			if sample_row.row_key == b'':
 				continue
 			
-			if range_.start_key <= sample_row.row_key and range_.end_key >= sample_row.row_key:
+			if range_.contains_key(sample_row.row_key):
 				if start is not None:
 					end = sample_row.row_key
 					yield self.range_split_fraction(current, desired_bundle_size_bytes, start, end)
 				start = sample_row.row_key
-			l = sample_row.offset_bytes desired_bundle_size_bytes,
-							   split_start_key,
-							   split_end_key)
-			splits.extend(sub_splits)
-			last_end_key = response_end_key
-			last_offset = response_offset
-		
-		return splits
+			l = sample_row.offset_bytes
 
 	def range_split_fraction(self, current_size, desired_bundle_size, start_key, end_key):
 		range_tracker = LexicographicKeyRangeTracker(start_key, end_key)
