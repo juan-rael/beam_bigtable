@@ -61,37 +61,32 @@ class RReadFromBigtable(ReadFromBigtable):
 		return self._getTable().sample_row_keys()
 	def range_size(self):
 		pass
-	def split_range_size(self, start_key, end_key):
-		prev = None	
-		size = None
-		start,end,suma = None,None,None
-		l = 0
-		lexi = None
-		for i in self.get_sample_row():
-			current = i.offset_bytes - l
-			l = i.offset_bytes
-			if i.row_key > start_key:
-				if start is None:
-					start = prev
-					suma = 0
-			if suma is not None:
-				suma += current
-			if i.row_key > end_key:
-				if end is None:
-					if end_key > prev:
-						print(prev, end_key, i.row_key)
-						lexi = LexicographicKeyRangeTracker.position_to_fraction(end_key, start=prev, end=i.row_key)
-						print(lexi)
+	def split_range_size(self, desired_bundle_size_bytes, sample_row_keys, range_):
+		last_end_key = b''
+		last_offset = 0
+		splits = []
+		for response in sample_row_keys:
+			response_end_key = response.row_key
+			response_offset = response.offset_bytes
 
-						end = end_key
-					else:
-						end = prev
-					break
-			prev = i.row_key
-		print( start )
-		print( end )
-		return size
-
+			split_start_key = last_end_key
+			if split_start_key < range_.start_key:
+				split_start_key = range_.start_key
+			
+			split_end_key = response_end_key
+			if not range_.contains_key(split_end_key):
+				split_end_key = range_.end_key
+			
+			sample_size_bytes = response_offset - last_offset
+			sub_splits = self.range_split_fraction(sample_size_bytes,
+							   desired_bundle_size_bytes,
+							   split_start_key,
+							   split_end_key)
+			splits.extend(sub_splits)
+			last_end_key = response_end_key
+			last_offset = response_offset
+		
+		return splits
 project_id = 'grass-clump-479'
 instance_id = 'endurance'
 table_id = 'perf1DFN4UF2'
@@ -99,13 +94,11 @@ table_id = 'perf1DFN4UF2'
 config = BigtableReadConfiguration(project_id, instance_id, table_id)
 read_from_bigtable = RReadFromBigtable(config)
 size = read_from_bigtable.estimate_size()
-# a = read_from_bigtable.range_split_fraction(805306368, 402653184, b'user0038', b'user0163')
-#for i in read_from_bigtable.range_split_fraction(805306368, 805306368, b'user0038', b'user0163'):
-#	print( str(i.start_position) + "|" + str(i.stop_position))
-#	range_tracker = LexicographicKeyRangeTracker(i.start_position,i.stop_position)
-#	for row in read_from_bigtable.read(range_tracker):
-#		print( row.row_key )
-start_key = b'user0038'
-end_key = b'user0165573'
-current_size = 0
-print( read_from_bigtable.split_range_size(start_key, end_key) )
+
+ranges = RowRanges(start_key=b'user0038', end_key=b'user0165573')
+desired_bundle_size = 402653184
+sample_row_keys = read_from_bigtable.get_sample_row()
+split_size = read_from_bigtable.split_range_size(desired_bundle_size, sample_row_keys, ranges)
+
+for i in split_size:
+	print( i )
