@@ -39,9 +39,47 @@ instance_id = 'endurance'
 table_id = 'perf1DFN4UF2'
 
 class RReadFromBigtable(ReadFromBigtable):
-	pass
+	def getTable(self):
+		return self._getTable()
+	def split(self, desired_bundle_size, start_position=None, stop_position=None):
+		sample_row_keys = self.get_sample_row_keys()
+		suma = 0
+		last_offset = 0
+		current_size = 0
 
+		start_key = b''
+		end_key = b''
+
+		for sample_row_key in sample_row_keys:
+			current_size = sample_row_key.offset_bytes-last_offset
+			if suma >= desired_bundle_size:
+				end_key = sample_row_key.row_key
+				yield iobase.SourceBundle(suma, self, start_key, end_key)
+				#for fraction in self.range_split_fraction(suma, desired_bundle_size, start_key, end_key):
+				#	yield fraction
+				start_key = sample_row_key.row_key
+
+				suma = 0
+			suma += current_size
+			last_offset = sample_row_key.offset_bytes
 	
+	def split_key_range_into_bundle_sized_sub_ranges(self, sample_size_bytes, desired_bundle_size, ranges):
+		last_key = copy.deepcopy(ranges.stop_position())
+		s = ranges.start_position()
+		e = ranges.stop_position()
+
+		split_ = float(desired_bundle_size) / float(sample_size_bytes)
+		split_count = int( math.ceil( sample_size_bytes / desired_bundle_size ) )
+
+		for i in range(1,split_count):
+			estimate_position = ((i) * split_)
+			#print( estimate_position )
+			position = LexicographicKeyRangeTracker.fraction_to_position(estimate_position, ranges.start_position(), ranges.stop_position())
+			e = position
+			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, e)
+			s = position
+		if not s == last_key:
+			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
 
 
 config = BigtableReadConfiguration(project_id, instance_id, table_id)
@@ -54,19 +92,32 @@ read_from_bigtable = RReadFromBigtable(config)
 #sample_row_keys = read_from_bigtable.get_sample_row_keys()
 
 #split_size = read_from_bigtable.split_range_size(desired_bundle_size, sample_row_keys, ranges)
-array = [
-	
-	LexicographicKeyRangeTracker(b'user0038', b'user0163'),
-	LexicographicKeyRangeTracker(b'user0163', b'user04'),
-	LexicographicKeyRangeTracker(b'user04', b'user054'),
-	LexicographicKeyRangeTracker(b'user054', b'user083'),
-	LexicographicKeyRangeTracker(b'user083', b'user105'),
-	LexicographicKeyRangeTracker(b'user105', b'user127'),
-	LexicographicKeyRangeTracker(b'user127', b'user162'),
-	LexicographicKeyRangeTracker(b'user162', b'user183'),
-	LexicographicKeyRangeTracker(b'user183', b'user2'),
-]
-for a in array:
-	for sub_ranges in read_from_bigtable.split_key_range_into_bundle_sized_sub_ranges(805306368, 201326592, a):
-		print( sub_ranges)
-	print( "++" )
+
+
+current_size = 805306368
+desired_bundle_size = 201326592
+#desired_bundle_size = 402653184
+start_ = b''
+end_ = b'user04'
+start = b''
+end = None
+
+a = []
+
+for i in range(1, 10, 1):
+	range_tracker = LexicographicKeyRangeTracker(b'', b'user04')
+	pos = LexicographicKeyRangeTracker.fraction_to_position(float(i)/10, start_, end_)
+	split = range_tracker.try_split(pos)
+	end = split[0]
+	a.append(LexicographicKeyRangeTracker(start, end))
+	start = split[0]
+if not start == end_:
+	a.append(LexicographicKeyRangeTracker(start, end_))
+
+for i in a:
+	#read_r = read_from_bigtable.getTable().read_rows(start_key=i.start_position(),
+	#		end_key=i.stop_position())
+	print(i.start_position(),i.stop_position())
+	#for row in read_r:
+	#	print("\t" + row.row_key)
+	#print("+++")

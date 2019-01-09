@@ -154,7 +154,8 @@ class ReadFromBigtable(iobase.BoundedSource):
 				current_size = sample_row_key.offset_bytes-last_offset
 				if suma >= desired_bundle_size:
 					end_key = sample_row_key.row_key
-					yield self.range_split_fraction(suma, desired_bundle_size, start_key, end_key)
+					for fraction in self.range_split_fraction(suma, desired_bundle_size, start_key, end_key):
+						yield fraction
 					start_key = sample_row_key.row_key
 
 					suma = 0
