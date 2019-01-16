@@ -81,7 +81,6 @@ class RReadFromBigtable(ReadFromBigtable):
 		if not s == last_key:
 			yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
 
-
 config = BigtableReadConfiguration(project_id, instance_id, table_id)
 read_from_bigtable = RReadFromBigtable(config)
 #size = read_from_bigtable.estimate_size()
@@ -97,15 +96,15 @@ read_from_bigtable = RReadFromBigtable(config)
 current_size = 805306368
 desired_bundle_size = 201326592
 #desired_bundle_size = 402653184
-start_ = b''
-end_ = b'user04'
-start = b''
+start_ = ''
+end_ = 'user04'
+start = ''
 end = None
 
 a = []
 
 for i in range(1, 10, 1):
-	range_tracker = LexicographicKeyRangeTracker(b'', b'user04')
+	range_tracker = LexicographicKeyRangeTracker(start_, end_)
 	pos = LexicographicKeyRangeTracker.fraction_to_position(float(i)/10, start_, end_)
 	split = range_tracker.try_split(pos)
 	end = split[0]
@@ -115,9 +114,12 @@ if not start == end_:
 	a.append(LexicographicKeyRangeTracker(start, end_))
 
 for i in a:
-	#read_r = read_from_bigtable.getTable().read_rows(start_key=i.start_position(),
-	#		end_key=i.stop_position())
+	read_r = read_from_bigtable.getTable().read_rows(start_key=i.start_position(), end_key=i.stop_position())
 	print(i.start_position(),i.stop_position())
-	#for row in read_r:
-	#	print("\t" + row.row_key)
-	#print("+++")
+	for row in read_r:
+		print("\t" + row.row_key)
+	print("+++")
+
+#read_r = read_from_bigtable.getTable().read_rows(start_key=b'user0000000',end_key=b'user0000009')
+#for row in read_r:
+#	print("\t" + row.row_key)
