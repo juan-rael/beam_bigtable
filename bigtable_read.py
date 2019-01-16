@@ -43,6 +43,20 @@ class ReadFromBigtable(iobase.BoundedSource):
     size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
     return size
 
+  def sample_row_keys_bundle(self):
+    last_offset = 0
+    current_size = 0
+
+    start_key = b''
+    end_key = b''
+    sample_row_keys = self.get_sample_row_keys()
+    for sample_row_key in sample_row_keys:
+        current_size = sample_row_key.offset_bytes - last_offset
+        end_key = sample_row_key.row_key
+        yield iobase.SourceBundle(current_size, self, start_key, end_key)
+        start_key = sample_row_key.row_key
+        last_offset = sample_row_key.offset_bytes
+
   def get_sample_row_keys(self):
     return self._getTable().sample_row_keys()
 
@@ -86,8 +100,6 @@ class ReadFromBigtable(iobase.BoundedSource):
         last_offset = sample_row_key.offset_bytes
 
   def split_range_size(self, desired_size, sample_row_keys, range_):
-    print('Start Key', range_.start_key)
-    print('End Key', range_.end_key)
     start, end = None, None
     l = 0
     for sample_row in sample_row_keys:
