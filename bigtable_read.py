@@ -15,20 +15,23 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
 class ReadFromBigtable(iobase.BoundedSource):
-  def __init__(self, beam_options):
+  def __init__(self, project_id, instance_id, table_id,
+               row_set=None, filter_=None):
     super(ReadFromBigtable, self).__init__()
-    self.beam_options = beam_options
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
     self.table = None
-    self.read_row = Metrics.counter(self.__class__, 'read')
+    self.row_set = row_set
+    self.filter_ = filter_
+    self.read_row = Metrics.counter(self.__class__, 'Read Rows')
 
   def _getTable(self):
     if self.table is None:
       options = self.beam_options
-      client = bigtable.Client(
-        project=options.project_id,
-        credentials=self.beam_options.credentials)
-      instance = client.instance(options.instance_id)
-      self.table = instance.table(options.table_id)
+      client = Client(project=self.beam_options['project_id'])
+      instance = client.instance(self.beam_options['instance_id'])
+      self.table = instance.table(self.beam_options['table_id'])
     return self.table
 
   def __getstate__(self):
@@ -37,7 +40,7 @@ class ReadFromBigtable(iobase.BoundedSource):
   def __setstate__(self, options):
     self.beam_options = options
     self.table = None
-    self.read_row = Metrics.counter(self.__class__, 'read')
+    self.read_row = Metrics.counter(self.__class__, 'Read Rows')
 
   def estimate_size(self):
     size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
@@ -69,8 +72,8 @@ class ReadFromBigtable(iobase.BoundedSource):
             start_position=None,
             stop_position=None):
 
-    if self.beam_options.row_set is not None:
-      for sample_row_key in self.beam_options.row_set.row_ranges:
+    if self.row_set is not None:
+      for sample_row_key in self.row_set.row_ranges:
         sample_row_keys = self.get_sample_row_keys()
         for row_split in self.split_range_size(desired_bundle_size,
                                                sample_row_keys,
@@ -175,36 +178,14 @@ class ReadFromBigtable(iobase.BoundedSource):
 
   def display_data(self):
     ret = {
-      'projectId': DisplayDataItem(self.beam_options.project_id,
+      'projectId': DisplayDataItem(self.beam_options['project_id'],
                                    label='Bigtable Project Id',
                                    key='projectId'),
-      'instanceId': DisplayDataItem(self.beam_options.instance_id,
+      'instanceId': DisplayDataItem(self.beam_options['instance_id'],
                                     label='Bigtable Instance Id',
                                     key='instanceId'),
-      'tableId': DisplayDataItem(self.beam_options.table_id,
+      'tableId': DisplayDataItem(self.beam_options['table_id'],
                                  label='Bigtable Table Id',
                                  key='tableId')}
-    if self.beam_options.row_set is not None:
-      i = 0
-      for value in self.beam_options.row_set.row_keys:
-        label = 'Bigtable Row Set {}'.format(i)
-        key = 'rowSet{}'.format(i)
-        ret[key] = DisplayDataItem(str(value),
-                                   label=label,
-                                   key=key)
-        i = i+1
-      for (i,value) in enumerate(self.beam_options.row_set.row_ranges):
-        key = 'rowSet{}'.format(i)
-        label = 'Bigtable Row Set {}'.format(i)
-        ret[key] = DisplayDataItem(str(value.get_range_kwargs()),
-                                   label=label,
-                                   key=key)
-        i = i+1
-    if self.beam_options.filter_ is not None:
-      for (i,value) in enumerate(self.beam_options.filter_.filters):
-        key = 'rowFilter{}'.format(i)
-        label = 'Bigtable Row Filter {}'.format(i)
-        ret[key] = DisplayDataItem(str(value.to_pb()),
-                                   label=label,
-                                   key=key)
+    
     return ret

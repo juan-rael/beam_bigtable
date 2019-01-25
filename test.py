@@ -47,11 +47,6 @@ def run(args):
 
 	p = beam.Pipeline(options=pipeline_options)
 
-	row_set = RowSet()
-	row_set.add_row_range(RowRange(start_key=b'user354', end_key=b'user384',start_inclusive=True,end_inclusive=True))
-	row_set.add_row_range(RowRange(start_key=b'user646', end_key=b'user665',start_inclusive=True,end_inclusive=True))
-
-	#config = BigtableReadConfiguration(project_id, instance_id, table_id, row_set=row_set)
 	config = BigtableReadConfiguration(project_id, instance_id, table_id)
 	read_from_bigtable = ReadFromBigtable(config)
 
@@ -61,7 +56,7 @@ def run(args):
 		| 'print' >> beam.ParDo(PrintKeys())
 	)
 	result = p.run()
-	#result.wait_until_finish()
+	result.wait_until_finish()
 
 if __name__ == '__main__':
 	logging.getLogger().setLevel(logging.INFO)
