@@ -33,20 +33,19 @@ class GenerateRow(beam.DoFn):
     if not hasattr(self, 'generate_row'):
       self.generate_row = Metrics.counter(self.__class__.__name__, 'generate_row')
 
-  def process(self, k, steps):
-    for key in xrange(int(k[0]), int(k[0])+steps):
-      key = "beam_key%s" % ('{0:07}'.format(key))
-      rand = random.choice(string.ascii_letters + string.digits)
-      value = ''.join(rand for i in range(30))
-      column_id = 1
-      direct_row = row.DirectRow(row_key=key)
-      direct_row.set_cell(
-                  'cf1',
-                  ('field%s' % column_id).encode('utf-8'),
-                  value,
-                  datetime.datetime.now())
-      self.generate_row.inc()
-      yield direct_row
+  def process(self, key):
+    key = "beam_key%s" % ('{0:07}'.format(key))
+    rand = random.choice(string.ascii_letters + string.digits)
+    value = ''.join(rand for i in range(30))
+    column_id = 1
+    direct_row = row.DirectRow(row_key=key)
+    direct_row.set_cell(
+                'cf1',
+                ('field%s' % column_id).encode('utf-8'),
+                value,
+                datetime.datetime.now())
+    self.generate_row.inc()
+    yield direct_row
 
 
 class CreateAll():
@@ -81,6 +80,17 @@ class CreateAll():
       table.create(column_families=column_families)
 
 
+
+class PrintKeys(beam.DoFn):
+  def __init__(self):
+    from apache_beam.metrics import Metrics
+    self.print_row = Metrics.counter(self.__class__.__name__, 'Print Row')
+
+  def process(self, row):
+    self.print_row.inc()
+    return [row]
+
+
 def run(argv=[]):
   project_id = 'grass-clump-479'
   instance_id = 'python-write'
@@ -89,6 +99,7 @@ def run(argv=[]):
   guid = str(uuid.uuid4())[:8]
   table_id = 'testmillion' + guid
   jobname = 'testmillion-write-' + guid
+  
 
   argv.extend([
     '--experiments=beam_fn_api',
@@ -102,7 +113,7 @@ def run(argv=[]):
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
     '--autoscaling_algorithm=NONE',
-    '--num_workers=7',
+    '--num_workers=10',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
@@ -132,9 +143,10 @@ def run(argv=[]):
                  'table_id': table_id}
   
   count = (p
-           | 'Ranges' >> beam.Create([(str(i),1) for i in xrange(0, row_count, row_step)])
+           | 'Ranges' >> beam.Create([(str(i),str(i+row_step)) for i in xrange(0, row_count, row_step)])
            | 'Group' >> beam.GroupByKey()
-           | 'Generate' >> beam.ParDo(GenerateRow(),row_step)
+           | 'Flat' >> beam.FlatMap(lambda x: list(xrange(int(x[0]), int(x[0])+row_step)))
+           | 'Generate' >> beam.ParDo(GenerateRow())
            | 'Write' >> WriteToBigTable(project_id=project_id,
                                         instance_id=instance_id,
                                         table_id=table_id))

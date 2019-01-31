@@ -8,11 +8,13 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 from google.cloud._helpers import _microseconds_from_datetime
 from google.cloud._helpers import UTC
 
-from bigtable import ReadFromBigTable
+from beam_bigtable import ReadFromBigTable
 
 
 EXISTING_INSTANCES = []
@@ -41,7 +43,7 @@ def run(argv=[]):
   instance_id = 'python-write'
   DEFAULT_TABLE_PREFIX = "python-test"
   guid = str(uuid.uuid4())
-  table_id = 'testmillion79c9a577'
+  table_id = 'testmillionc1d57d6f'
   job_name = 'testmillion-read-' + guid
   
 
@@ -56,8 +58,12 @@ def run(argv=[]):
     '--job_name={}'.format(job_name),
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
+    '--autoscaling_algorithm=NONE',
+    '--num_workers=7',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
+    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.7.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
@@ -78,16 +84,16 @@ def run(argv=[]):
                  'instance_id': instance_id,
                  'table_id': table_id}
   with beam.Pipeline(options=pipeline_options) as p:
-    pipe_create = (p
-                   | 'BigtableFromRead' >> ReadFromBigTable(project_id=project_id,
-                                                            instance_id=instance_id,
-                                                            table_id=table_id)
-                   | 'Count' >> beam.combiners.Count.Globally())
-
-  assert_that(count, equal_to([row_count]))
+    count = (p
+             | 'BigtableFromRead' >> ReadFromBigTable(project_id=project_id,
+                                                      instance_id=instance_id,
+                                                      table_id=table_id)
+             | 'Count' >> beam.combiners.Count.Globally())
+    row_count = 10000000
+    assert_that(count, equal_to([row_count]))
 
     result = p.run()
-    result.wait_until_finish()
+#    result.wait_until_finish()
 
 
 if __name__ == '__main__':
