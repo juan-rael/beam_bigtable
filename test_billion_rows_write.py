@@ -10,6 +10,8 @@ import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 from google.cloud._helpers import _microseconds_from_datetime
 from google.cloud._helpers import UTC
@@ -123,7 +125,6 @@ def run(argv=[]):
     '--job_name={}'.format(jobname),
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
-    '--num_workers=100',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
@@ -152,14 +153,18 @@ def run(argv=[]):
   config_data = {'project_id': project_id,
                  'instance_id': instance_id,
                  'table_id': table_id}
-  pipe_create = (p
-                 | 'Generate' >> GenerateAll(row_count, row_ranges)
-                 | 'PrintKey' >> beam.ParDo(PrintKeys()))
-#                 | 'Write' >> WriteToBigTable(project_id=project_id,
-#                                              instance_id=instance_id,
-#                                              table_id=table_id))
-  result = p.run()
-  result.wait_until_finish()
+  
+  count = (p
+           | 'Generate' >> GenerateAll(row_count, row_ranges)
+           | 'Write' >> WriteToBigTable(project_id=project_id,
+                                        instance_id=instance_id,
+                                        table_id=table_id)
+           | 'Count' >> beam.combiners.Count.Globally()
+  )
+
+  assert_that(count, equal_to([row_count]))
+  p.run()
+#  result.wait_until_finish()
 
 if __name__ == '__main__':
   run()
