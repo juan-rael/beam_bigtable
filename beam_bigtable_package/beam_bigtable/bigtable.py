@@ -1,19 +1,35 @@
-from __future__ import absolute_import
+import argparse
+import datetime
+import random
+import string
 import copy
+import uuid
+import time
+import logging
+
 
 import apache_beam as beam
+from apache_beam.io import WriteToText
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
+from google.cloud._helpers import _microseconds_from_datetime
+from google.cloud._helpers import UTC
+from google.cloud.bigtable import row
 from google.cloud.bigtable import Client
+from google.cloud.bigtable import column_family
 from google.cloud.bigtable import enums 
 
 
-class ReadFromBigtable(iobase.BoundedSource):
+
+class _BigTableReadFn(iobase.BoundedSource):
   def __init__(self, project_id, instance_id, table_id,
                row_set=None, filter_=None):
+    super(self.__class__, self).__init__()
     from apache_beam.metrics import Metrics
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
@@ -21,7 +37,7 @@ class ReadFromBigtable(iobase.BoundedSource):
                          'row_set': row_set,
                          'filter_': filter_}
     self.table = None
-    self.read_row = Metrics.counter(self.__class__, 'Read Rows')
+    self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
 
   def _getTable(self):
     if self.table is None:
@@ -159,20 +175,6 @@ class ReadFromBigtable(iobase.BoundedSource):
     return ret
 
 
-class ReadToBigTable(beam.PTransform):
-  def __init__(self, project_id, instance_id, table_id):
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
-
-  def expand(self, pvalue):
-    beam_options = self.beam_options
-    return (pvalue
-            | beam.io.Read(ReadFromBigtable(beam_options['project_id'],
-                                            beam_options['instance_id'],
-                                            beam_options['table_id'])))
-
-
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
@@ -194,7 +196,8 @@ class _BigTableWriteFn(beam.DoFn):
                          'table_id': table_id}
     self.table = None
     self.batcher = None
-    self.written = Metrics.counter(self.__class__, 'Written Row')
+    if not hasattr(self, 'written'):
+      self.written = Metrics.counter(self.__class__.__name__, 'written_row')
 
   def __getstate__(self):
     return self.beam_options
@@ -203,7 +206,8 @@ class _BigTableWriteFn(beam.DoFn):
     self.beam_options = options
     self.table = None
     self.batcher = None
-    self.written = Metrics.counter(self.__class__, 'Written Row')
+    if not hasattr(self, 'written'):
+      self.written = Metrics.counter(self.__class__.__name__, 'written_row')
 
   def start_bundle(self):
     if self.table is None:
@@ -238,6 +242,20 @@ class _BigTableWriteFn(beam.DoFn):
            }
 
 
+class ReadFromBigTable(beam.PTransform):
+  def __init__(self, project_id, instance_id, table_id):
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
+
+  def expand(self, pvalue):
+    beam_options = self.beam_options
+    return (pvalue
+            | 'ReadFromBigtable' >> beam.io.Read(_BigTableReadFn(beam_options['project_id'],
+                                                                 beam_options['instance_id'],
+                                                                 beam_options['table_id'])))
+
+
 class WriteToBigTable(beam.PTransform):
   """ A transform to write to the Bigtable Table.
 
@@ -247,13 +265,15 @@ class WriteToBigTable(beam.PTransform):
   def __init__(self, project_id=None, instance_id=None,
                table_id=None):
     super(WriteToBigTable, self).__init__()
+    print("PTransform WriteToBigtable")
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
 
   def expand(self, pvalue):
     beam_options = self.beam_options
+    print("Running ParDO BigtableWrite")
     return (pvalue
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
-                                          beam_options['instance_id'],
-                                          beam_options['table_id'])))
+            | 'Bigtable Write' >> beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                                              beam_options['instance_id'],
+                                                              beam_options['table_id'])))
