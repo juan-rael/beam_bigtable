@@ -41,8 +41,8 @@ def run(argv=[]):
   instance_id = 'python-write'
   DEFAULT_TABLE_PREFIX = "python-test"
   guid = str(uuid.uuid4())
-  table_id = 'testmillion9085017a'
-  job_name = 'test-read-' + guid
+  table_id = 'testmillion79c9a577'
+  job_name = 'testmillion-read-' + guid
   
 
   argv.extend([
@@ -82,21 +82,12 @@ def run(argv=[]):
                    | 'BigtableFromRead' >> ReadFromBigTable(project_id=project_id,
                                                             instance_id=instance_id,
                                                             table_id=table_id)
-                   | 'RowToRowKey' >> beam.Map(lambda x: x))
+                   | 'Count' >> beam.combiners.Count.Globally())
+
+  assert_that(count, equal_to([row_count]))
 
     result = p.run()
     result.wait_until_finish()
-
-    if (not hasattr(result, 'has_job') or result.has_job):
-      print_row_filter = MetricsFilter().with_name('print_row')
-      query_result = result.metrics().query(print_row_filter)
-      if query_result['counters']:
-        print_row_counter = query_result['counters'][0]
-        print('NumberofPrintKeys: {}'.format(print_row_counter.commited))
-      else:
-        print('No Counters')
-    else:
-      print('still proccessing')
 
 
 if __name__ == '__main__':

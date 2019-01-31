@@ -33,20 +33,20 @@ class GenerateRow(beam.DoFn):
     if not hasattr(self, 'generate_row'):
       self.generate_row = Metrics.counter(self.__class__.__name__, 'generate_row')
 
-  def process(self, key):
-    key = "beam_key%s" % ('{0:07}'.format(key))
-    print(key)
-    rand = random.choice(string.ascii_letters + string.digits)
-    value = ''.join(rand for i in range(30))
-    column_id = 1
-    direct_row = row.DirectRow(row_key=key)
-    direct_row.set_cell(
-                'cf1',
-                ('field%s' % column_id).encode('utf-8'),
-                value,
-                datetime.datetime.now())
-    self.generate_row.inc()
-    yield direct_row
+  def process(self, k, steps):
+    for key in xrange(int(k[0]), int(k[0])+steps):
+      key = "beam_key%s" % ('{0:07}'.format(key))
+      rand = random.choice(string.ascii_letters + string.digits)
+      value = ''.join(rand for i in range(30))
+      column_id = 1
+      direct_row = row.DirectRow(row_key=key)
+      direct_row.set_cell(
+                  'cf1',
+                  ('field%s' % column_id).encode('utf-8'),
+                  value,
+                  datetime.datetime.now())
+      self.generate_row.inc()
+      yield direct_row
 
 
 class CreateAll():
@@ -81,29 +81,6 @@ class CreateAll():
       table.create(column_families=column_families)
 
 
-class GenerateAll(beam.PTransform):
-  def __init__(self, row_count, row_step):
-    self.row_count = row_count
-    self.row_step = row_step
-
-  def expand(self, pbegin):
-    return (pbegin
-            | 'Ranges' >> beam.Create([(str(i),1) for i in xrange(0, self.row_count, self.row_step)])
-            | 'Group' >> beam.GroupByKey()
-            | 'Flat' >> beam.FlatMap(lambda x: list(xrange(int(x[0]), int(x[0])+self.row_step)))
-            | 'Generate' >> beam.ParDo(GenerateRow()))
-
-
-class PrintKeys(beam.DoFn):
-  def __init__(self):
-    from apache_beam.metrics import Metrics
-    self.print_row = Metrics.counter(self.__class__.__name__, 'Print Row')
-
-  def process(self, row):
-    self.print_row.inc()
-    return [row]
-
-
 def run(argv=[]):
   project_id = 'grass-clump-479'
   instance_id = 'python-write'
@@ -111,8 +88,7 @@ def run(argv=[]):
   #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   guid = str(uuid.uuid4())[:8]
   table_id = 'testmillion' + guid
-  jobname = 'testmillion-' + guid
-  
+  jobname = 'testmillion-write-' + guid
 
   argv.extend([
     '--experiments=beam_fn_api',
@@ -125,10 +101,12 @@ def run(argv=[]):
     '--job_name={}'.format(jobname),
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
+    '--autoscaling_algorithm=NONE',
+    '--num_workers=7',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.5.tar.gz'
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.7.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
@@ -144,8 +122,7 @@ def run(argv=[]):
   create_table.create_table()
 
   row_count = 10000000
-  row_step = 10000
-  row_ranges = row_count if row_count <= row_step else row_count/row_step
+  row_step = row_count if row_count <= 10000 else row_count/10000
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
@@ -155,14 +132,12 @@ def run(argv=[]):
                  'table_id': table_id}
   
   count = (p
-           | 'Generate' >> GenerateAll(row_count, row_ranges)
+           | 'Ranges' >> beam.Create([(str(i),1) for i in xrange(0, row_count, row_step)])
+           | 'Group' >> beam.GroupByKey()
+           | 'Generate' >> beam.ParDo(GenerateRow(),row_step)
            | 'Write' >> WriteToBigTable(project_id=project_id,
                                         instance_id=instance_id,
-                                        table_id=table_id)
-           | 'Count' >> beam.combiners.Count.Globally()
-  )
-
-  assert_that(count, equal_to([row_count]))
+                                        table_id=table_id))
   p.run()
 #  result.wait_until_finish()
 

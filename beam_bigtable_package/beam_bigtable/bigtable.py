@@ -227,6 +227,7 @@ class _BigTableWriteFn(beam.DoFn):
     #                     'value1',
     #                     timestamp=datetime.datetime.now())
     self.batcher.mutate(row)
+    return [row]
 
   def finish_bundle(self):
     self.batcher.flush()
