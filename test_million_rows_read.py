@@ -43,9 +43,9 @@ def run(argv=[]):
   instance_id = 'python-write'
   DEFAULT_TABLE_PREFIX = "python-test"
   #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  guid = str(uuid.uuid4())
+  guid = str(uuid.uuid4())[:8]
   table_id = 'testmillion6bd104b8'
-  jobname = 'testmillion-write-' + guid
+  jobname = 'read-' + table_id + '-' + guid
   
 
   argv.extend([
@@ -60,7 +60,7 @@ def run(argv=[]):
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
     '--autoscaling_algorithm=NONE',
-    '--num_workers=7',
+    '--num_workers=10',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
@@ -93,7 +93,8 @@ def run(argv=[]):
     row_count = 10000000
     assert_that(count, equal_to([row_count]))
 
-    p.run()
+    result = p.run()
+    result.wait_until_finish()
 
 
 if __name__ == '__main__':
