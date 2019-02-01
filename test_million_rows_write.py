@@ -115,7 +115,7 @@ def run(argv=[]):
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.9.tar.gz'
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.12.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
