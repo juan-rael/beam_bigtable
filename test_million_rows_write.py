@@ -151,7 +151,6 @@ def run(argv=[]):
                                         instance_id=instance_id,
                                         table_id=table_id))
   p.run()
-#  result.wait_until_finish()
 
 if __name__ == '__main__':
   run()

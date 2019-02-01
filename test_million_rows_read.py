@@ -42,9 +42,10 @@ def run(argv=[]):
   project_id = 'grass-clump-479'
   instance_id = 'python-write'
   DEFAULT_TABLE_PREFIX = "python-test"
+  #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   guid = str(uuid.uuid4())
   table_id = 'testmillionc1d57d6f'
-  job_name = 'testmillion-read-' + guid
+  jobname = 'testmillion-write-' + guid
   
 
   argv.extend([
@@ -55,7 +56,7 @@ def run(argv=[]):
     '--projectId={}'.format(project_id),
     '--instanceId={}'.format(instance_id),
     '--tableId={}'.format(table_id),
-    '--job_name={}'.format(job_name),
+    '--job_name={}'.format(jobname),
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
     '--autoscaling_algorithm=NONE',
@@ -74,7 +75,7 @@ def run(argv=[]):
   print('ProjectID:',project_id)
   print('InstanceID:',instance_id)
   print('TableID:',table_id)
-  print('JobID:', job_name)
+  print('JobID:', jobname)
 
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -92,8 +93,7 @@ def run(argv=[]):
     row_count = 10000000
     assert_that(count, equal_to([row_count]))
 
-    result = p.run()
-#    result.wait_until_finish()
+    p.run()
 
 
 if __name__ == '__main__':
