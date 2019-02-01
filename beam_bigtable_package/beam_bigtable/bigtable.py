@@ -27,6 +27,25 @@ from google.cloud.bigtable import enums
 
 
 class _BigTableReadFn(iobase.BoundedSource):
+  """ Create the connector can call to read the bigtable table in the
+  beam pipeline
+
+  :type project_id
+  :param project_id
+
+  :type instance_id
+  :param instance_id
+
+  :type table_id
+  :param table_id
+
+  :type row_set
+  :param row_set
+
+  :type filter_
+  :param filter_
+  
+  """
   def __init__(self, project_id, instance_id, table_id,
                row_set=None, filter_=None):
     super(self.__class__, self).__init__()
@@ -37,7 +56,7 @@ class _BigTableReadFn(iobase.BoundedSource):
                          'row_set': row_set,
                          'filter_': filter_}
     self.table = None
-    self.read_row = Metrics.counter(self.__class__.__name__, 'read_row')
+    self.read_row = Metrics.counter(self.__class__, 'read_row')
 
   def _getTable(self):
     if self.table is None:
@@ -197,7 +216,7 @@ class _BigTableWriteFn(beam.DoFn):
     self.table = None
     self.batcher = None
     if not hasattr(self, 'written'):
-      self.written = Metrics.counter(self.__class__.__name__, 'written_row')
+      self.written = Metrics.counter(self.__class__, 'written_row')
 
   def __getstate__(self):
     return self.beam_options
@@ -207,7 +226,7 @@ class _BigTableWriteFn(beam.DoFn):
     self.table = None
     self.batcher = None
     if not hasattr(self, 'written'):
-      self.written = Metrics.counter(self.__class__.__name__, 'written_row')
+      self.written = Metrics.counter(self.__class__, 'written_row')
 
   def start_bundle(self):
     if self.table is None:

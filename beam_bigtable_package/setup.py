@@ -3,19 +3,17 @@
 
 import io
 import os
-import sys
-from shutil import rmtree
 import setuptools
 
 NAME = 'beam_bigtable'
-DESCRIPTION = 'My short description for my project.'
+DESCRIPTION = 'Beam Bigtable'
 URL = 'https://github.com/juan-rael/beam_bigtable'
-EMAIL = 'me@example.com'
+EMAIL = 'juan@qlogic.io'
 AUTHOR = 'Juan Rael Corrales'
 REQUIRES_PYTHON = '>=2.7.0'
 VERSION = None
 REQUIRED = [
-    'google-cloud-bigtable==0.31.1',
+    'google-cloud-bigtable==0.32.1',
     'google-cloud-core==0.28.1',
 ]
 EXTRAS = {
