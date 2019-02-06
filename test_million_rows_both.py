@@ -1,12 +1,15 @@
 from __future__ import absolute_import
 import argparse
+import copy
 import datetime
+import math
 import uuid
 
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -41,10 +44,9 @@ def run(argv=[]):
   project_id = 'grass-clump-479'
   instance_id = 'python-write'
   DEFAULT_TABLE_PREFIX = "python-test"
-  #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  guid = str(uuid.uuid4())[:8]
+  guid = str(uuid.uuid4())
   table_id = 'testmillion6bd104b8'
-  jobname = 'read-' + table_id + '-' + guid
+  jobname = table_id + '-' + guid
   
 
   argv.extend([
@@ -59,11 +61,11 @@ def run(argv=[]):
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
     '--autoscaling_algorithm=NONE',
-    '--num_workers=10',
+    '--num_workers=7',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.24.tar.gz'
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.25.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
@@ -84,15 +86,15 @@ def run(argv=[]):
                  'instance_id': instance_id,
                  'table_id': table_id}
   with beam.Pipeline(options=pipeline_options) as p:
+    count = (p
+             | 'BigtableFromRead' >> ReadFromBigTable(project_id=project_id,
+                                                      instance_id=instance_id,
+                                                      table_id=table_id)
+             | 'Count' >> beam.combiners.Count.Globally())
     row_count = 10000000
-    row_step = row_count if row_count <= 10000 else row_count/10000
-    (p
-     | 'Ranges' >> beam.Create([(str(i),str(i+row_step)) for i in xrange(0, row_count, row_step)])
-     | 'BigtableFromRead' >> ReadFromBigTable(project_id=config_data['project_id'],
-                                              instance_id=config_data['instance_id'],
-                                              table_id=config_data['table_id']))
-    result = p.run()
-    result.wait_until_finish()
+    assert_that(count, equal_to([row_count]))
+
+    p.run()
 
 
 if __name__ == '__main__':
