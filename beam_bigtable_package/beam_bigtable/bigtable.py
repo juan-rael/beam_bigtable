@@ -51,11 +51,13 @@ try:
   from google.cloud._helpers import _microseconds_from_datetime
   from google.cloud._helpers import UTC
   from google.cloud.bigtable import row
+  from google.cloud.bigtable.batcher import FLUSH_COUNT, MAX_ROW_BYTES
   from google.cloud.bigtable import Client
   from google.cloud.bigtable import column_family
   from google.cloud.bigtable import enums 
 except ImportError:
-  pass
+  FLUSH_COUNT = 1000
+  MAX_MUTATIONS = 100000
 
 __all__ = ['WriteToBigTable','ReadFromBigTable']
 
@@ -268,7 +270,9 @@ class _BigTableWriteFn(beam.DoFn):
 
   """
 
-  def __init__(self, project_id, instance_id, table_id):
+  def __init__(self, project_id, instance_id, table_id,
+               flush_count=FLUSH_COUNT,
+               max_row_bytes=MAX_ROW_BYTES):
     """ Constructor of the Write connector of Bigtable
     Args:
       project_id(str): GCP Project of to write the Rows
@@ -278,7 +282,9 @@ class _BigTableWriteFn(beam.DoFn):
     super(_BigTableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
-                         'table_id': table_id}
+                         'table_id': table_id,
+                         'flush_count': flush_count,
+                         'max_row_bytes': max_row_bytes}
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
@@ -297,9 +303,12 @@ class _BigTableWriteFn(beam.DoFn):
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
-    self.batcher = self.table.mutations_batcher()
+    flush_count = self.beam_options['flush_count']
+    max_row_bytes = self.beam_options['max_row_bytes']
+    self.batcher = self.table.mutations_batcher(flush_count,
+                                                max_row_bytes)
 
-  def process(self, row):
+  def process(self, element):
     self.written.inc()
     # You need to set the timestamp in the cells in this row object,
     # when we do a retry we will mutating the same object, but, with this
@@ -309,7 +318,7 @@ class _BigTableWriteFn(beam.DoFn):
     #                     'field1',
     #                     'value1',
     #                     timestamp=datetime.datetime.now())
-    self.batcher.mutate(row)
+    self.batcher.mutate(element)
 
   def finish_bundle(self):
     self.batcher.flush()
