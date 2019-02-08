@@ -85,16 +85,16 @@ class GenerateRow(beam.DoFn):
 
 def run():
   argv=[]
-#  read_config = {
-#    'project_id':'grass-clump-479',
-#    'instance_id':'python-write',
-#    'table_id':'testmillion6bd104b8',
-#  }
   read_config = {
     'project_id':'grass-clump-479',
     'instance_id':'python-write',
-    'table_id':'testmilliona73ae01b',
+    'table_id':'testmillion6bd104b8',
   }
+  # read_config = {
+  #   'project_id':'grass-clump-479',
+  #   'instance_id':'endurance',
+  #   'table_id':'perf1DFN4UF2',
+  # }
   guid = str(uuid.uuid4())[:8]
   write_config = {
     'project_id':'grass-clump-479',
@@ -115,12 +115,12 @@ def run():
     '--tableId={}'.format(read_config['table_id']),
     '--requirements_file=requirements.txt',
     '--runner=dataflow',
-#    '--autoscaling_algorithm=NONE',
-#    '--num_workers=30',
+    '--autoscaling_algorithm=NONE',
+    '--num_workers=10',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.25.tar.gz'
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.26.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')

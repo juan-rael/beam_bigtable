@@ -90,6 +90,18 @@ class _BigTableReadFn(iobase.BoundedSource):
     self.table = None
     self.read_row = Metrics.counter(self.__class__, 'read_row')
 
+  def __getstate__(self):
+    return self.beam_options
+
+  def __setstate__(self, options):
+    self.beam_options = {'project_id': options['project_id'],
+                         'instance_id': options['instance_id'],
+                         'table_id': options['table_id'],
+                         'row_set': options['row_set'],
+                         'filter_': options['filter_']}
+    self.table = None
+    self.read_row = Metrics.counter(self.__class__, 'read_row')
+
   def _getTable(self):
     if self.table is None:
       options = self.beam_options
@@ -341,7 +353,8 @@ class WriteToBigTable(beam.PTransform):
 
   """
   def __init__(self, project_id=None, instance_id=None,
-               table_id=None):
+               table_id=None,flush_count=FLUSH_COUNT,
+               max_row_bytes=MAX_ROW_BYTES):
     """ The PTransform to access the Bigtable Write connector
     Args:
       project_id(str): GCP Project of to write the Rows
@@ -351,11 +364,15 @@ class WriteToBigTable(beam.PTransform):
     super(WriteToBigTable, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
-                         'table_id': table_id}
+                         'table_id': table_id,
+                         'flush_count': flush_count,
+                         'max_row_bytes': max_row_bytes}
 
   def expand(self, pvalue):
     beam_options = self.beam_options
     return (pvalue
             | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
                                           beam_options['instance_id'],
-                                          beam_options['table_id'])))
+                                          beam_options['table_id'],
+                                          beam_options['flush_count'],
+                                          beam_options['max_row_bytes'])))
