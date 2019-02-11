@@ -40,11 +40,11 @@ class PrintKeys(beam.DoFn):
 
 def run(argv=[]):
   project_id = 'grass-clump-479'
-  instance_id = 'python-write'
+  instance_id = 'python-write-2'
   DEFAULT_TABLE_PREFIX = "python-test"
   #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  guid = str(uuid.uuid4())[:8]
-  table_id = 'testmillion6bd104b8'
+  guid = str(uuid.uuid1())
+  table_id = 'testmillionb38b8c9f'
   jobname = 'read-' + table_id + '-' + guid
   
 
@@ -58,13 +58,15 @@ def run(argv=[]):
     '--tableId={}'.format(table_id),
     '--job_name={}'.format(jobname),
     '--requirements_file=requirements.txt',
+    '--disk_size_gb=100',
+    '--region=us-central1',
     '--runner=dataflow',
-    '--autoscaling_algorithm=NONE',
-    '--num_workers=10',
+    '--num_workers=37',
+    '--machine_type=n1-standard-8',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.13.tar.gz'
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
@@ -90,11 +92,10 @@ def run(argv=[]):
                                                       instance_id=instance_id,
                                                       table_id=table_id)
              | 'Count' >> beam.combiners.Count.Globally())
-    row_count = 10000000
+    row_count = 20000000
     assert_that(count, equal_to([row_count]))
 
-    result = p.run()
-    result.wait_until_finish()
+    p.run()
 
 
 if __name__ == '__main__':

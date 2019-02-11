@@ -16,7 +16,6 @@ from google.cloud._helpers import UTC
 from google.cloud.bigtable import row
 from google.cloud.bigtable import Client
 from google.cloud.bigtable import column_family
-from google.cloud.bigtable import enums 
 
 from beam_bigtable import WriteToBigTable
 
@@ -26,24 +25,27 @@ label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
 LABELS = {LABEL_KEY: str(label_stamp_micros)}
 
+
 class GenerateRow(beam.DoFn):
   def __init__(self):
-    if not hasattr(self, 'generate_row'):
-      self.generate_row = Metrics.counter(self.__class__.__name__, 'generate_row')
+    self.generate_row = Metrics.counter(self.__class__, 'generate_row')
 
-  def process(self, key):
-    key = "beam_key%s" % ('{0:07}'.format(key))
-    rand = random.choice(string.ascii_letters + string.digits)
-    value = ''.join(rand for i in range(30))
-    column_id = 1
-    direct_row = row.DirectRow(row_key=key)
-    direct_row.set_cell(
-                'cf1',
-                ('field%s' % column_id).encode('utf-8'),
-                value,
-                datetime.datetime.now())
-    self.generate_row.inc()
-    yield direct_row
+  def __setstate__(self, options):
+    self.generate_row = Metrics.counter(self.__class__, 'generate_row')
+
+  def process(self, ranges):
+    for row_id in range(int(ranges[0]), int(ranges[1][0])):
+      key = "beam_key%s" % ('{0:07}'.format(row_id))
+      rand = random.choice(string.ascii_letters + string.digits)
+
+      direct_row = row.DirectRow(row_key=key)
+      _ = [direct_row.set_cell(
+                    'cf1',
+                    ('field%s' % i).encode('utf-8'),
+                    ''.join(rand for _ in range(100)),
+                    datetime.datetime.now()) for i in range(10)]
+      self.generate_row.inc()
+      yield direct_row
 
 
 class CreateAll():
@@ -91,7 +93,8 @@ class PrintKeys(beam.DoFn):
 
 def run(argv=[]):
   project_id = 'grass-clump-479'
-  instance_id = 'python-write'
+#  instance_id = 'python-write'
+  instance_id = 'python-write-2'
   DEFAULT_TABLE_PREFIX = "python-test"
   #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   guid = str(uuid.uuid4())[:8]
@@ -103,24 +106,19 @@ def run(argv=[]):
     '--experiments=beam_fn_api',
     '--project={}'.format(project_id),
     '--instance={}'.format(instance_id),
-    '--table={}'.format(table_id),
-    '--projectId={}'.format(project_id),
-    '--instanceId={}'.format(instance_id),
-    '--tableId={}'.format(table_id),
     '--job_name={}'.format(jobname),
     '--requirements_file=requirements.txt',
+    '--disk_size_gb=100',
+    '--region=us-central1',
     '--runner=dataflow',
-    '--autoscaling_algorithm=NONE',
-    '--num_workers=10',
+    '--num_workers=37',
+    '--machine_type=n1-standard-8',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.12.tar.gz'
+    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
-  parser.add_argument('--projectId')
-  parser.add_argument('--instanceId')
-  parser.add_argument('--tableId')
   (known_args, pipeline_args) = parser.parse_known_args(argv)
 
   create_table = CreateAll(project_id, instance_id, table_id)
@@ -130,7 +128,7 @@ def run(argv=[]):
   print('JobID:', jobname)
   create_table.create_table()
 
-  row_count = 10000000
+  row_count = 20000000
   row_step = row_count if row_count <= 10000 else row_count/10000
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -143,11 +141,11 @@ def run(argv=[]):
   count = (p
            | 'Ranges' >> beam.Create([(str(i),str(i+row_step)) for i in xrange(0, row_count, row_step)])
            | 'Group' >> beam.GroupByKey()
-           | 'Flat' >> beam.FlatMap(lambda x: list(xrange(int(x[0]), int(x[0])+row_step)))
            | 'Generate' >> beam.ParDo(GenerateRow())
            | 'Write' >> WriteToBigTable(project_id=project_id,
                                         instance_id=instance_id,
-                                        table_id=table_id))
+                                        table_id=table_id,
+                                        flush_count=4000))
   p.run()
 
 if __name__ == '__main__':
