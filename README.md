@@ -30,7 +30,7 @@ pip install -r requirements.txt
 ```
 6. Add the Google Credentials.
 ```sh
-export GOOGLE_APPLICATION_CREDENTIALS="/usr/src/app/test_beam/grass-clump-479-clients-dev.json"
+export GOOGLE_APPLICATION_CREDENTIALS="/path/of/your/credential/file/file.json"
 ```
 ## Create the Bigtable extra file Package to upload to Dataflow.
 1. This code demonstrates how to connect create and upload a extra package to Dataflow and run a code in Dataflow without problems.
@@ -60,11 +60,11 @@ export GOOGLE_APPLICATION_CREDENTIALS="/usr/src/app/test_beam/grass-clump-479-cl
     ```python
     [
         '--experiments=beam_fn_api',
-        '--project=grass-clump-479',
+        '--project=project-id',
         '--requirements_file=requirements.txt',
         '--runner=dataflow',
-        '--staging_location=gs://juantest/stage',
-        '--temp_location=gs://juantest/temp',
+        '--staging_location=gs://storage-instance/stage',
+        '--temp_location=gs://storage-instance/temp',
         '--setup_file=./beam_bigtable/setup.py',
         '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.1.tar.gz'
     ]
