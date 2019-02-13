@@ -18,6 +18,8 @@ docker image ls
 ```sh
 docker run --security-opt seccomp:unconfined -it -v C:\Users\Juan\Project\python:/usr/src/app python2_beam_docker bash
 ```
+> the first element in the -v argument is the windows shared path and the second is your path in the docker container.(you need to separate it with a :).
+> python2_beam_docker is the name of your docker image.
 4. Go to your Work directory.
 ```sh
 cd /usr/src/app/
@@ -30,11 +32,52 @@ pip install -r requirements.txt
 ```sh
 export GOOGLE_APPLICATION_CREDENTIALS="/usr/src/app/test_beam/grass-clump-479-clients-dev.json"
 ```
-7. Create the Bigtable extra file Package to upload to Dataflow.
-    [Create Extra Package](https://github.com/juan-rael/beam_bigtable/tree/master/beam_bigtable)
-8. Run the example.py setting the project, instance and table arguments.
+## Create the Bigtable extra file Package to upload to Dataflow.
+1. This code demonstrates how to connect create and upload a extra package to Dataflow and run a code in Dataflow without problems.
+
+    ```
+    ├── beam_bigtable           # Package folder
+        ├─── __init__.py        # Package Initialization file.
+        ├─── __version__.py     # Version file.
+        └─── bigtable.py        # Your Package Code.
+    ├── setup.py                # Setup Code
+    ├── LICENSE
+    └── README.md
+    ```
+2. Create the Setup.py using the name of the package create a folder with that name and  then create in that folder a file __init__.py, and import your package file in it.
+3.Run the command to create the file to install the new package.
+    ```sh
+    $ python setup.py sdist --formats=gztar
+    ```
+4. Install your code in your system, because, your going to use it to run your python dataflow code.
+    ```sh
+    $ pip install beam_bigtable-0.1.1.tar.gz
+    ```
+5. Set the arguments in the PipelineOptions
+    Need to use extra_package and setup_file arguments.
+    extra_package set the path of the compress package.
+    setup_file set the file to install this package.
+    ```python
+    [
+        '--experiments=beam_fn_api',
+        '--project=grass-clump-479',
+        '--requirements_file=requirements.txt',
+        '--runner=dataflow',
+        '--staging_location=gs://juantest/stage',
+        '--temp_location=gs://juantest/temp',
+        '--setup_file=./beam_bigtable/setup.py',
+        '--extra_package=./beam_bigtable/dist/beam_bigtable-0.1.1.tar.gz'
+    ]
+    ```
+
+## Run the examples
+Run the Read Example
 ```sh
 python test_million_rows_read.py
+```
+Run the Write Example
+```sh
+python test_million_rows_write.py
 ```
 9. Go to Dataflow API.
 
