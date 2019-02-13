@@ -7,7 +7,6 @@ import uuid
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -61,12 +60,14 @@ def run(argv=[]):
     '--disk_size_gb=100',
     '--region=us-central1',
     '--runner=dataflow',
+    '--autoscaling_algorithm=NONE',
     '--num_workers=37',
-    '--machine_type=n1-standard-8',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
-    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
+    '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
+#    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
+#    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.30.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
@@ -95,7 +96,7 @@ def run(argv=[]):
     row_count = 20000000
     assert_that(count, equal_to([row_count]))
 
-    p.run()
+    result = p.run()
 
 
 if __name__ == '__main__':

@@ -111,12 +111,13 @@ def run(argv=[]):
     '--disk_size_gb=100',
     '--region=us-central1',
     '--runner=dataflow',
-    '--num_workers=37',
-    '--machine_type=n1-standard-8',
+    '--machine_type=n1-highmem-2',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
-    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
+    '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
+#    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
+#    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   (known_args, pipeline_args) = parser.parse_known_args(argv)
@@ -128,7 +129,7 @@ def run(argv=[]):
   print('JobID:', jobname)
   create_table.create_table()
 
-  row_count = 20000000
+  row_count = 10000000
   row_step = row_count if row_count <= 10000 else row_count/10000
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -144,8 +145,7 @@ def run(argv=[]):
            | 'Generate' >> beam.ParDo(GenerateRow())
            | 'Write' >> WriteToBigTable(project_id=project_id,
                                         instance_id=instance_id,
-                                        table_id=table_id,
-                                        flush_count=4000))
+                                        table_id=table_id))
   p.run()
 
 if __name__ == '__main__':

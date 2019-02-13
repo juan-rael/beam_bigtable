@@ -89,6 +89,7 @@ class _BigTableReadFn(iobase.BoundedSource):
                          'filter_': filter_}
     self.table = None
     self.read_row = Metrics.counter(self.__class__, 'read_row')
+    self.split_chunk = Metrics.counter(self.__class__, 'split')
 
   def __getstate__(self):
     return self.beam_options
@@ -101,6 +102,7 @@ class _BigTableReadFn(iobase.BoundedSource):
                          'filter_': options['filter_']}
     self.table = None
     self.read_row = Metrics.counter(self.__class__, 'read_row')
+    self.split_chunk = Metrics.counter(self.__class__, 'split')
 
   def _getTable(self):
     if self.table is None:
@@ -120,7 +122,7 @@ class _BigTableReadFn(iobase.BoundedSource):
             desired_bundle_size,
             start_position=None,
             stop_position=None):
-
+    print('splitRead', desired_bundle_size)
     if self.beam_options['row_set'] is not None:
       for sample_row_key in self.beam_options['row_set'].row_ranges:
         sample_row_keys = self.get_sample_row_keys()
@@ -128,6 +130,8 @@ class _BigTableReadFn(iobase.BoundedSource):
                                                sample_row_keys,
                                                sample_row_key):
           yield row_split
+          print(row_split)
+          self.split_chunk.inc()
     else:
       suma = 0
       last_offset = 0
@@ -145,6 +149,8 @@ class _BigTableReadFn(iobase.BoundedSource):
                                                     desired_bundle_size,
                                                     start_key, end_key):
             yield fraction
+            print(fraction)
+            self.split_chunk.inc()
           start_key = sample_row_key.row_key
 
           suma = 0
