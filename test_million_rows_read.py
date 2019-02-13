@@ -10,6 +10,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+from google.cloud.bigtable import Client
 from google.cloud._helpers import _microseconds_from_datetime
 from google.cloud._helpers import UTC
 
@@ -37,13 +38,20 @@ class PrintKeys(beam.DoFn):
     return [row]
 
 
+def get_rows(project_id, instance_id, table_id):
+  client = Client(project=project_id)
+  instance = client.instance(instance_id)
+  table = instance.table(table_id)
+  return table.read_rows()
+
+
 def run(argv=[]):
   project_id = 'grass-clump-479'
   instance_id = 'python-write-2'
   DEFAULT_TABLE_PREFIX = "python-test"
   #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   guid = str(uuid.uuid1())
-  table_id = 'testmillionb38b8c9f'
+  table_id = 'testmilliond18a1d96'
   jobname = 'read-' + table_id + '-' + guid
   
 
@@ -61,7 +69,7 @@ def run(argv=[]):
     '--region=us-central1',
     '--runner=dataflow',
     '--autoscaling_algorithm=NONE',
-    '--num_workers=37',
+    '--num_workers=10',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
@@ -93,7 +101,7 @@ def run(argv=[]):
                                                       instance_id=instance_id,
                                                       table_id=table_id)
              | 'Count' >> beam.combiners.Count.Globally())
-    row_count = 20000000
+    row_count = 10000000
     assert_that(count, equal_to([row_count]))
 
     result = p.run()
