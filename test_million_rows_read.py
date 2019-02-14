@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import argparse
 import datetime
 import uuid
-
+from sys import platform
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -46,14 +46,50 @@ def get_rows(project_id, instance_id, table_id):
 
 
 def run(argv=[]):
-  project_id = 'grass-clump-479'
-  instance_id = 'python-write-2'
-  DEFAULT_TABLE_PREFIX = "python-test"
-  #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  guid = str(uuid.uuid1())
-  table_id = 'testmilliond18a1d96'
+  table_info = [
+    {
+      'project_id':'grass-clump-479',
+      'instance_id':'python-write-2',
+      'table_id':'testmillionb38b8c9f',
+      'size':20000000
+    },
+    {
+      'project_id':'grass-clump-479',
+      'instance_id':'python-write-2',
+      'table_id':'testmillionb38b8c9f',
+      'size':10
+    },
+    {
+      'project_id':'grass-clump-479',
+      'instance_id':'python-write-2',
+      'table_id':'testmillionb38b8c9f',
+      'size':10000000
+    },
+  ]
+  table_using = table_info[0]
+
+  project_id = table_using['project_id']
+  instance_id = table_using['instance_id']
+  table_id = table_using['table_id']
+  guid = str(uuid.uuid4())
   jobname = 'read-' + table_id + '-' + guid
-  
+  row_count = table_using['size']
+
+  if platform == "linux" or platform == "linux2":
+    argument = {
+      'setup': '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.38.tar.gz'
+    }
+  elif platform == "darwin":
+    argument = {
+      'setup': '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.38.tar.gz'
+    }
+  elif platform == "win32":
+    argument = {
+      'setup': '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
+      'extra_package': '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
+    }
 
   argv.extend([
     '--experiments=beam_fn_api',
@@ -72,10 +108,8 @@ def run(argv=[]):
     '--num_workers=10',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
-#    '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
-    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-#    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
-    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.30.tar.gz'
+    argument['setup'],
+    argument['extra_package'],
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')
@@ -101,10 +135,9 @@ def run(argv=[]):
                                                       instance_id=instance_id,
                                                       table_id=table_id)
              | 'Count' >> beam.combiners.Count.Globally())
-    row_count = 10000000
     assert_that(count, equal_to([row_count]))
 
-    result = p.run()
+    p.run()
 
 
 if __name__ == '__main__':

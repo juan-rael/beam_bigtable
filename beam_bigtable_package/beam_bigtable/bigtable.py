@@ -133,29 +133,33 @@ class _BigTableReadFn(iobase.BoundedSource):
           print(row_split)
           self.split_chunk.inc()
     else:
-      suma = 0
-      last_offset = 0
-      current_size = 0
+      first = [i.offset_bytes for i in self.get_sample_row_keys()][0]
+      if first > desired_bundle_size:
+        yield iobase.SourceBundle(desired_bundle_size, self, start_key, end_key)
+      else:
+        addition = 0
+        last_offset = 0
+        current_size = 0
 
-      start_key = b''
-      end_key = b''
+        start_key = b''
+        end_key = b''
 
-      sample_row_keys = self.get_sample_row_keys()
-      for sample_row_key in sample_row_keys:
-        current_size = sample_row_key.offset_bytes-last_offset
-        if suma >= desired_bundle_size:
-          end_key = sample_row_key.row_key
-          for fraction in self.range_split_fraction(suma,
-                                                    desired_bundle_size,
-                                                    start_key, end_key):
-            yield fraction
-            print(fraction)
-            self.split_chunk.inc()
-          start_key = sample_row_key.row_key
+        sample_row_keys = self.get_sample_row_keys()
+        for sample_row_key in sample_row_keys:
+          current_size = sample_row_key.offset_bytes-last_offset
+          if addition >= desired_bundle_size:
+            end_key = sample_row_key.row_key
+            for fraction in self.range_split_fraction(addition,
+                                                      desired_bundle_size,
+                                                      start_key, end_key):
+              yield fraction
+              print(fraction)
+              self.split_chunk.inc()
+            start_key = sample_row_key.row_key
 
-          suma = 0
-        suma += current_size
-        last_offset = sample_row_key.offset_bytes
+            addition = 0
+          addition += current_size
+          last_offset = sample_row_key.offset_bytes
 
   def split_range_size(self, desired_size, sample_row_keys, range_):
     start, end = None, None
