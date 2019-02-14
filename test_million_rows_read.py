@@ -75,20 +75,21 @@ def run(argv=[]):
   jobname = 'read-' + table_id + '-' + guid
   row_count = table_using['size']
 
+  file_package = 'beam_bigtable-0.3.43.tar.gz'
   if platform == "linux" or platform == "linux2":
     argument = {
       'setup': '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.38.tar.gz'
+      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/' + file_package
     }
   elif platform == "darwin":
     argument = {
       'setup': '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.38.tar.gz'
+      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/' + file_package
     }
   elif platform == "win32":
     argument = {
       'setup': '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
-      'extra_package': '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
+      'extra_package': '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\' + file_package
     }
 
   argv.extend([

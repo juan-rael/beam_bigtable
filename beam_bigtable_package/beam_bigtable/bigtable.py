@@ -135,7 +135,7 @@ class _BigTableReadFn(iobase.BoundedSource):
     else:
       first = [i.offset_bytes for i in self.get_sample_row_keys()][0]
       if first > desired_bundle_size:
-        yield iobase.SourceBundle(desired_bundle_size, self, start_key, end_key)
+        yield iobase.SourceBundle(desired_bundle_size, self, b'', b'')
       else:
         addition = 0
         last_offset = 0
