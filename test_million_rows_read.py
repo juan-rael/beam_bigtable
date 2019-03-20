@@ -43,7 +43,7 @@ def run(argv=[]):
   DEFAULT_TABLE_PREFIX = "python-test"
   #table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   guid = str(uuid.uuid1())
-  table_id = 'testmillionb38b8c9f'
+  table_id = 'testmillionb38c02c4'
   jobname = 'read-' + table_id + '-' + guid
   
 
@@ -60,13 +60,14 @@ def run(argv=[]):
     '--disk_size_gb=100',
     '--region=us-central1',
     '--runner=dataflow',
+    #'--runner=directRunner',
     '--autoscaling_algorithm=NONE',
-    '--num_workers=37',
+    '--num_workers=100',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
 #    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
+    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.44.tar.gz'
 #    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.30.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
@@ -83,17 +84,14 @@ def run(argv=[]):
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
-  
-  config_data = {'project_id': project_id,
-                 'instance_id': instance_id,
-                 'table_id': table_id}
   with beam.Pipeline(options=pipeline_options) as p:
-    count = (p
-             | 'BigtableFromRead' >> ReadFromBigTable(project_id=project_id,
+    second_step = (p
+                   | 'BigtableFromRead' >> ReadFromBigTable(project_id=project_id,
                                                       instance_id=instance_id,
-                                                      table_id=table_id)
+                                                      table_id=table_id))
+    count = (second_step
              | 'Count' >> beam.combiners.Count.Globally())
-    row_count = 20000000
+    row_count = 10000000
     assert_that(count, equal_to([row_count]))
 
     result = p.run()

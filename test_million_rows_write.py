@@ -30,139 +30,6 @@ from google.cloud.bigtable.table import Table
 
 
 
-class _BigtableRetryableError(Exception):
-    """Retry-able error expected by the default retry strategy."""
-
-DEFAULT_RETRY = Retry(
-    predicate=if_exception_type(_BigtableRetryableError),
-    initial=1.0,
-    maximum=15.0,
-    multiplier=2.0,
-    deadline=120.0,  # 2 minutes
-)
-
-class _CustomRetryableMutateRowsWorker(object):
-    RETRY_CODES = (
-        StatusCode.DEADLINE_EXCEEDED.value[0],
-        StatusCode.ABORTED.value[0],
-        StatusCode.UNAVAILABLE.value[0],
-    )
-
-    def __init__(self, client, table_name, rows, app_profile_id=None):
-        self.client = client
-        self.table_name = table_name
-        self.rows = rows
-        self.app_profile_id = app_profile_id
-        self.responses_statuses = [None] * len(self.rows)
-
-    def __call__(self, retry=DEFAULT_RETRY):
-        mutate_rows = self._do_mutate_retryable_rows
-        if retry:
-            mutate_rows = retry(self._do_mutate_retryable_rows)
-
-        try:
-            mutate_rows()
-        except (_BigtableRetryableError, RetryError):
-            pass
-
-        return self.responses_statuses
-
-    @staticmethod
-    def _is_retryable(status):
-        return status is None or status.code in _RetryableMutateRowsWorker.RETRY_CODES
-
-    def _do_mutate_retryable_rows(self):
-        retryable_rows = []
-        index_into_all_rows = []
-        for index, status in enumerate(self.responses_statuses):
-            if self._is_retryable(status):
-                retryable_rows.append(self.rows[index])
-                index_into_all_rows.append(index)
-
-        if not retryable_rows:
-            # All mutations are either successful or non-retryable now.
-            return self.responses_statuses
-
-        mutate_rows_request = _mutate_rows_request(
-            self.table_name, retryable_rows, app_profile_id=self.app_profile_id
-        )
-        data_client = self.client.table_data_client
-        inner_api_calls = data_client._inner_api_calls
-        if "mutate_rows" not in inner_api_calls:
-            default_retry = (data_client._method_configs["MutateRows"].retry,)
-            default_timeout = data_client._method_configs["MutateRows"].timeout
-            data_client._inner_api_calls["mutate_rows"] = wrap_method(
-                data_client.transport.mutate_rows,
-                default_retry=default_retry,
-                default_timeout=default_timeout,
-                client_info=data_client._client_info,
-            )
-
-        responses = data_client._inner_api_calls["mutate_rows"](
-            mutate_rows_request, retry=None
-        )
-
-        num_responses = 0
-        num_retryable_responses = 0
-        for response in responses:
-            for entry in response.entries:
-                num_responses += 1
-                index = index_into_all_rows[entry.index]
-                self.responses_statuses[index] = entry.status
-                if self._is_retryable(entry.status):
-                    num_retryable_responses += 1
-                if entry.status.code == 0:
-                    self.rows[index].clear()
-
-        if len(retryable_rows) != num_responses:
-            raise RuntimeError(
-                "Unexpected number of responses",
-                num_responses,
-                "Expected",
-                len(retryable_rows),
-            )
-
-        if num_retryable_responses:
-            raise _BigtableRetryableError
-
-        return self.responses_statuses
-
-
-class CustomMutationsBatcher(MutationsBatcher):
-  def __init__(self, *argv, **kwargv):
-    self.table.mutation_timeout = kwargv['timeout']
-
-
-class CustomTable(Table):
-  def __init__(self, *argv, **kwargv):
-    super(CustomTable, self).__init__(*argv, **kwargv)
-    self.mutation_timeout = None
-
-  def mutate_rows(self, rows, retry=DEFAULT_RETRY):
-        retryable_mutate_rows = _CustomRetryableMutateRowsWorker(
-            self._instance._client, self.name, rows, app_profile_id=self._app_profile_id
-        )
-        return retryable_mutate_rows(retry=retry)
-
-
-class CustomInstance(Instance):
-  def table(self, table_id, app_profile_id=None):
-        return CustomTable(table_id, self, app_profile_id=app_profile_id)
-
-
-class CustomClient(Client):
-  def instance(self, instance_id, display_name=None, instance_type=None, labels=None):
-    return CustomInstance(
-        instance_id,
-        self,
-        display_name=display_name,
-        instance_type=instance_type,
-        labels=labels,
-    )
-
-
-
-
 EXISTING_INSTANCES = []
 LABEL_KEY = u'python-bigtable-beam'
 label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
@@ -261,7 +128,7 @@ def run(argv=[]):
     '--temp_location=gs://juantest/temp',
     '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
 #    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.33.tar.gz'
+    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.39.tar.gz'
 #    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
@@ -274,8 +141,8 @@ def run(argv=[]):
   print('JobID:', jobname)
   create_table.create_table()
 
-  row_count = 1000000000
-  row_limit = 10000
+  row_count = 100000
+  row_limit = 100
   row_step = row_count if row_count <= row_limit else row_count/row_limit
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
