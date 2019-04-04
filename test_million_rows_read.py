@@ -77,10 +77,13 @@ def run(argv=[]):
   
   #full = ('testmillioned113e20', 10)
   #full = ('testmillion2ee87b99', 10000)
-  full = ('testbothae323947', 10000)
+  #full = ('testmillion11daf1bf', 24543)
+  #full = ('testbothae323947',    10000)
   #full = ('testmillion1c1d2c39', 781000)
+  #full = ('testmillionc0a4f355', 881000)
   #full = ('testmillion9a0b1127', 6000000)
   #full = ('testmillionb38c02c4', 10000000)
+  full = ('testmillione320108f', 500000000)
 
   table_id = full[0]
   number = full[1]
@@ -101,11 +104,11 @@ def run(argv=[]):
     '--region=us-central1',
     '--runner=dataflow',
     '--autoscaling_algorithm=NONE',
-    '--num_workers=100',
+    '--num_workers=300',
     '--staging_location=gs://juantest/stage',
     '--temp_location=gs://juantest/temp',
     '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
-    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.106.tar.gz'
+    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.116.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
   parser.add_argument('--projectId')

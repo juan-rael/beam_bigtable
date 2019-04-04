@@ -128,7 +128,7 @@ def run(argv=[]):
     '--temp_location=gs://juantest/temp',
     '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
 #    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
-    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.48.tar.gz'
+    '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.114.tar.gz'
 #    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
   ])
   parser = argparse.ArgumentParser(argv)
@@ -141,7 +141,7 @@ def run(argv=[]):
   print('JobID:', jobname)
   create_table.create_table()
 
-  row_count = 5000000
+  row_count = 285714286
   row_limit = 1000
   row_step = row_count if row_count <= row_limit else row_count/row_limit
   pipeline_options = PipelineOptions(argv)
