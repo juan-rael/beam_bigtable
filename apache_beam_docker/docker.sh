@@ -1,1 +1,0 @@
-docker run --security-opt seccomp:unconfined -it -v C:\Users\Juan\Project\python:/usr/src/app python2_beam_docker bash

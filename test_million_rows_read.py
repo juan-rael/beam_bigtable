@@ -2,8 +2,10 @@ from __future__ import absolute_import
 import argparse
 import datetime
 import uuid
+
 import math
 
+from sys import platform
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -13,6 +15,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+from google.cloud.bigtable import Client
 from google.cloud._helpers import _microseconds_from_datetime
 from google.cloud._helpers import UTC
 
@@ -63,7 +66,15 @@ class ReadFromBigTable_Read(beam.PTransform):
       # Treat Read itself as a primitive.
       return pvalue.PCollection(self.pipeline)
 
+def get_rows(project_id, instance_id, table_id):
+  client = Client(project=project_id)
+  instance = client.instance(instance_id)
+  table = instance.table(table_id)
+  return table.read_rows()
+
+
 def run(argv=[]):
+
   project_id = 'grass-clump-479'
   instance_id = 'python-write-2'
   DEFAULT_TABLE_PREFIX = "python-test"
@@ -88,7 +99,6 @@ def run(argv=[]):
   table_id = full[0]
   number = full[1]
   jobname = 'read-' + str(number) + '-' + table_id + '-' + guid
-  
 
   argv.extend([
     '--experiments=beam_fn_api',
@@ -133,7 +143,6 @@ def run(argv=[]):
              | 'Count' >> beam.combiners.Count.Globally())
     row_count = number
     assert_that(count, equal_to([row_count]))
-
     result = p.run()
     result.wait_until_finish()
 

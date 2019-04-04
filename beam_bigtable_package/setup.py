@@ -14,7 +14,7 @@ REQUIRES_PYTHON = '>=2.7.0'
 VERSION = None
 REQUIRED = [
     'google-cloud-bigtable==0.32.1',
-    'google-cloud-core==0.28.1',
+    'google-cloud-core==0.29.1',
 ]
 EXTRAS = {
 }

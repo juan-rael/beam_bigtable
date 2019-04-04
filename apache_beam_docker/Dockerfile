@@ -1,2 +1,2 @@
-FROM gradle:4.2.1-jdk8-alpine
-WORKDIR /app
+FROM codewilling/python27-ci
+WORKDIR /usr/src/app

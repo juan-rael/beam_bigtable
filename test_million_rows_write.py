@@ -1,10 +1,11 @@
+# WriteToBigTable
 from __future__ import absolute_import
 import argparse
 import datetime
 import random
 import string
 import uuid
-
+from sys import platform
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -112,6 +113,22 @@ def run(argv=[]):
   table_id = 'testmillion' + guid
   jobname = 'testmillion-write-' + guid
   
+  if platform == "linux" or platform == "linux2":
+    argument = {
+      'setup': '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.38.tar.gz'
+    }
+  elif platform == "darwin":
+    argument = {
+      'setup': '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
+      'extra_package': '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.38.tar.gz'
+    }
+  elif platform == "win32":
+    argument = {
+      'setup': '--setup_file=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\setup.py',
+      'extra_package': '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.32.tar.gz'
+    }
+  
 
   argv.extend([
     '--experiments=beam_fn_api',
@@ -122,6 +139,7 @@ def run(argv=[]):
     '--disk_size_gb=50',
     '--region=us-central1',
     '--runner=dataflow',
+<<<<<<< HEAD
     '--autoscaling_algorithm=NONE',
     '--num_workers=300',
     '--staging_location=gs://juantest/stage',
@@ -130,6 +148,12 @@ def run(argv=[]):
 #    '--setup_file=/usr/src/app/example_bigtable_beam/beam_bigtable_package/setup.py',
     '--extra_package=C:\\Users\\Juan\\Project\\python\\example_bigtable_beam\\beam_bigtable_package\\dist\\beam_bigtable-0.3.114.tar.gz'
 #    '--extra_package=/usr/src/app/example_bigtable_beam/beam_bigtable_package/dist/beam_bigtable-0.3.28.tar.gz'
+=======
+    '--staging_location=gs://juantest/stage',
+    '--temp_location=gs://juantest/temp',
+    argument['setup'],
+    argument['extra_package'],
+>>>>>>> 812ca1a7dbdcfcec67cdcfac80cd8d5ba16c8c4a
   ])
   parser = argparse.ArgumentParser(argv)
   (known_args, pipeline_args) = parser.parse_known_args(argv)
@@ -141,9 +165,14 @@ def run(argv=[]):
   print('JobID:', jobname)
   create_table.create_table()
 
+<<<<<<< HEAD
   row_count = 285714286
   row_limit = 1000
   row_step = row_count if row_count <= row_limit else row_count/row_limit
+=======
+  row_count = 10
+  row_step = row_count if row_count <= 10000 else row_count/10000
+>>>>>>> 812ca1a7dbdcfcec67cdcfac80cd8d5ba16c8c4a
   pipeline_options = PipelineOptions(argv)
   pipeline_options.view_as(SetupOptions).save_main_session = True
 

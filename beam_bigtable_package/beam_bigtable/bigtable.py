@@ -227,6 +227,7 @@ class _BigTableSource(iobase.BoundedSource):
         start_key = b''
         end_key = b''
 
+
         for sample_row_key in self.get_sample_row_keys():
             current_size = sample_row_key.offset_bytes - last_offset
             addition_size += current_size
